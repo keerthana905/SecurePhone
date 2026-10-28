@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Sign In — SecurePhone{% endblock %}
+
+{% block public_content %}
+<div style="max-width:520px; margin:0 auto;">
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <h1 class="page-title" style="font-size:1.4rem;">Sign In to SecurePhone</h1>
+        <p class="page-subtitle">Access your Device Owner dashboard or Smart City Administrator center.</p>
+      </div>
+      <span class="badge badge-protected">SESSION AUTH</span>
+    </div>
+
+    <form method="POST" action="{{ url_for('login') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+      <div class="form-group">
+        <label class="form-label" for="email">Email Address</label>
+        <input type="email" id="email" name="email" class="form-control" required value="{{ email }}" placeholder="owner@securephone.demo">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="password">Password</label>
+        <input type="password" id="password" name="password" class="form-control" required placeholder="••••••••">
+      </div>
+
+      <button type="submit" class="btn btn-primary" style="width:100%;">Sign In</button>
+    </form>
+
+    <!-- Safe Pre-Seeded Demo Accounts Box -->
+    <div class="notice-box" style="margin-top:1.4rem; margin-bottom:0;">
+      <strong>Quick Demo Accounts (<span class="badge badge-sample">[SAMPLE DEMO]</span>):</strong>
+      <p style="margin:0.4rem 0 0.75rem; font-size:0.82rem;">
+        Click below to auto-fill credentials for testing Device Owner or Administrator workflows:
+      </p>
+      <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+        <button type="button" class="btn btn-sm btn-secondary"
+                onclick="SecurePhoneUI.fillDemoCredentials('owner@securephone.demo', 'Owner@123')">
+          Fill Demo Owner (owner@securephone.demo)
+        </button>
+        <button type="button" class="btn btn-sm btn-secondary"
+                onclick="SecurePhoneUI.fillDemoCredentials('admin@securephone.demo', 'Admin@123')">
+          Fill Demo Admin (admin@securephone.demo)
+        </button>
+      </div>
+    </div>
+
+    <p style="text-align:center; margin-top:1.15rem; font-size:0.88rem; color:var(--text-muted);">
+      New device owner? <a href="{{ url_for('register') }}">Create an account</a>
+    </p>
+  </div>
+</div>
+{% endblock %}

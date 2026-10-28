@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+{% block title %}SecurePhone — Intelligent Mobile Security &amp; Anti-Theft Platform{% endblock %}
+
+{% block public_content %}
+<!-- Cyber Teal + Violet Hero Showcase -->
+<div class="card hero-card">
+  <div class="grid-2" style="align-items:center;">
+    <div>
+      <span class="badge badge-info" style="margin-bottom:0.85rem;">SMART CITY CIVIC SECURITY PLATFORM</span>
+      <h1 style="font-size:2.45rem; margin:0 0 0.55rem; line-height:1.16; letter-spacing:-0.02em;">
+        SecurePhone: Intelligent Mobile Security &amp; Anti-Theft Platform
+      </h1>
+      <p style="font-size:1.3rem; color:var(--accent-primary); font-weight:700; margin:0 0 1rem; letter-spacing:0.02em;">
+        Protect. Locate. Recover.
+      </p>
+      <p style="color:var(--text-secondary); margin-bottom:1.6rem; font-size:1.02rem;">
+        Secure your devices, share your location with permission, report missing phones, and manage recovery through one intelligent platform.
+      </p>
+
+      <!-- Prominent Required CTAs -->
+      <div style="display:flex; gap:0.75rem; flex-wrap:wrap;">
+        <a href="{{ url_for('owner_dashboard') }}" class="btn btn-primary">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          Open Owner Dashboard
+        </a>
+        <a href="{{ url_for('simulator') }}" class="btn btn-secondary">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="2" width="12" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+          Launch Shutdown Simulator
+        </a>
+        <a href="{{ url_for('found_report_page') }}" class="btn btn-secondary">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          Report Found Phone
+        </a>
+      </div>
+    </div>
+
+    <!-- Custom Animated Cyber Teal + Violet Shield Graphic & Live Database Statistics -->
+    <div class="hero-visual-stage">
+      <div class="cyber-shield-orb" aria-hidden="true">
+        <svg width="86" height="86" viewBox="0 0 24 24" fill="none" stroke="#35E0CF" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" fill="rgba(155, 123, 255, 0.16)"/>
+          <rect x="9" y="6.5" width="6" height="10.5" rx="1.2" stroke="#9B7BFF"/>
+          <path d="M11 11a1 1 0 0 1 2 0v1.5" stroke="#35E0CF"/>
+          <circle cx="12" cy="14.8" r="0.8" fill="#35E0CF"/>
+        </svg>
+      </div>
+
+      <div class="stats-grid" style="width:100%; margin-bottom:0;">
+        <a href="{{ url_for('devices_list') }}" class="stat-card">
+          <div class="stat-card-top">
+            <span class="stat-label">Registered Devices</span>
+            <span class="stat-icon" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+            </span>
+          </div>
+          <span class="stat-value">{{ stats.registered_devices }}</span>
+          <span class="stat-meta">Live database registry &rarr;</span>
+        </a>
+
+        <a href="{{ url_for('my_reports') }}" class="stat-card">
+          <div class="stat-card-top">
+            <span class="stat-label">Active Recovery Cases</span>
+            <span class="stat-icon" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            </span>
+          </div>
+          <span class="stat-value">{{ stats.active_cases }}</span>
+          <span class="stat-meta">Tracked case IDs &rarr;</span>
+        </a>
+
+        <a href="{{ url_for('found_report_page') }}" class="stat-card">
+          <div class="stat-card-top">
+            <span class="stat-label">Potential Matches</span>
+            <span class="stat-icon" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            </span>
+          </div>
+          <span class="stat-value">{{ stats.potential_matches }}</span>
+          <span class="stat-meta">Automated correlations &rarr;</span>
+        </a>
+
+        <a href="{{ url_for('owner_dashboard') }}" class="stat-card">
+          <div class="stat-card-top">
+            <span class="stat-label">Recovered Devices</span>
+            <span class="stat-icon" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            </span>
+          </div>
+          <span class="stat-value" style="color:var(--status-success);">{{ stats.recovered_devices }}</span>
+          <span class="stat-meta">Ownership verified &rarr;</span>
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Concise Section Explaining All Six Core Features -->
+<div style="margin-bottom:1rem;">
+  <h2 class="page-title" style="font-size:1.35rem;">Six Core Platform Capabilities</h2>
+  <p class="page-subtitle">Built for Smart City device protection, transparent geolocation consent, and structured recovery coordination.</p>
+</div>
+
+<div class="grid-3">
+  <div class="card card-interactive">
+    <span class="badge badge-warning">1 &bull; SIMULATION MODULE</span>
+    <h3 class="card-title" style="margin-top:0.65rem;">Shutdown-Auth Simulation</h3>
+    <p style="color:var(--text-secondary); font-size:0.88rem;">
+      Interactive virtual smartphone with a glowing teal authentication ring and Demo PIN/biometric prompt demonstrating pre-shutdown verification.
+    </p>
+    <a href="{{ url_for('simulator') }}" class="btn btn-sm btn-secondary">Open Simulator &rarr;</a>
+  </div>
+
+  <div class="card card-interactive">
+    <span class="badge badge-protected">2 &bull; CONSENT GEOLOCATION</span>
+    <h3 class="card-title" style="margin-top:0.65rem;">Permission Location Sharing</h3>
+    <p style="color:var(--text-secondary); font-size:0.88rem;">
+      Owners explicitly toggle sharing on or off per device. Uses the browser Geolocation API and OpenStreetMap while the session is active.
+    </p>
+    <a href="{{ url_for('location_page') }}" class="btn btn-sm btn-secondary">Manage Location &rarr;</a>
+  </div>
+
+  <div class="card card-interactive">
+    <span class="badge badge-lost">3 &bull; INCIDENT REPORTING</span>
+    <h3 class="card-title" style="margin-top:0.65rem;">Lost Mode &amp; Theft Reporting</h3>
+    <p style="color:var(--text-secondary); font-size:0.88rem;">
+      Activate Lost Mode with confirmation to mark a registered handset as Lost, record incident details, and generate a unique recovery case ID.
+    </p>
+    <a href="{{ url_for('lost_mode_page') }}" class="btn btn-sm btn-secondary">Activate Lost Mode &rarr;</a>
+  </div>
+
+  <div class="card card-interactive">
+    <span class="badge badge-info">4 &bull; CORRELATION ENGINE</span>
+    <h3 class="card-title" style="margin-top:0.65rem;">Lost-and-Found Matching</h3>
+    <p style="color:var(--text-secondary); font-size:0.88rem;">
+      Compares missing-device reports with Good Samaritan found-phone reports using non-sensitive metadata and flags unverified candidates.
+    </p>
+    <a href="{{ url_for('found_report_page') }}" class="btn btn-sm btn-secondary">Report Found Phone &rarr;</a>
+  </div>
+
+  <div class="card card-interactive">
+    <span class="badge badge-info">5 &bull; ROLE-BASED OVERSIGHT</span>
+    <h3 class="card-title" style="margin-top:0.65rem;">Owner &amp; Admin Dashboards</h3>
+    <p style="color:var(--text-secondary); font-size:0.88rem;">
+      Dedicated dashboards for device owners and Smart City administrators with live SQLite metrics, match review queues, and audit logs.
+    </p>
+    <a href="{{ url_for('owner_dashboard') }}" class="btn btn-sm btn-secondary">View Dashboard &rarr;</a>
+  </div>
+
+  <div class="card card-interactive">
+    <span class="badge badge-protected">6 &bull; CASE LIFECYCLE</span>
+    <h3 class="card-title" style="margin-top:0.65rem;">Recovery Case Tracking</h3>
+    <p style="color:var(--text-secondary); font-size:0.88rem;">
+      Track cases from Pending and Under Verification to Match Found and Recovered, requiring ownership verification before device return.
+    </p>
+    <a href="{{ url_for('my_reports') }}" class="btn btn-sm btn-secondary">Track Cases &rarr;</a>
+  </div>
+</div>
+
+<!-- Honest Distinction Between Real Features and Simulated Features (Placed at the end of the page) -->
+<div class="notice-box" style="margin-top:1.75rem; margin-bottom:0.5rem;">
+  <strong>Transparent Feature Boundaries:</strong>
+  SecurePhone combines <strong>real full-stack web features</strong> (authenticated device management, permission-based browser geolocation with Leaflet/OpenStreetMap, Lost Mode reporting, automated lost-and-found correlation, and role-based recovery case tracking) with a clearly labelled <strong>Shutdown-Authentication Simulation</strong>. Because standard web browsers cannot override a physical smartphone's hardware power button, pre-shutdown verification is demonstrated via an interactive virtual handset.
+</div>
+{% endblock %}

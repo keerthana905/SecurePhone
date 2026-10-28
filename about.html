@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}About &amp; Security Information — SecurePhone{% endblock %}
+
+{% block public_content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">About SecurePhone &amp; Security Architecture</h1>
+    <p class="page-subtitle">Transparent documentation of platform capabilities, privacy safeguards, and technical simulation boundaries.</p>
+  </div>
+  <a href="{{ url_for('home') }}" class="btn btn-secondary">&larr; Back to Home</a>
+</div>
+
+<div class="grid-2" style="margin-bottom:1.5rem;">
+  <div class="card">
+    <div class="card-header">
+      <h2 class="card-title">Smart City Mission: Protect. Locate. Recover.</h2>
+      <span class="badge badge-info">OVERVIEW</span>
+    </div>
+    <p style="color:var(--text-secondary); font-size:0.92rem;">
+      SecurePhone is an intelligent mobile security and anti-theft web platform built for Smart City civic recovery coordination.
+      It empowers citizens to pre-register non-sensitive device metadata, share browser-permitted coordinates on OpenStreetMap,
+      file structured Lost Mode incidents, and correlate missing phones with found-property submissions.
+    </p>
+    <ul style="color:var(--text-secondary); font-size:0.9rem; padding-left:1.2rem;">
+      <li><strong>Frontend:</strong> Semantic HTML5, accessible dark-theme CSS3, Vanilla ES6 JavaScript, Leaflet.js + OpenStreetMap.</li>
+      <li><strong>Backend:</strong> Python Flask with session authentication, CSRF protection, rate limiting, and role-based access control.</li>
+      <li><strong>Database:</strong> Relational SQLite with foreign key enforcement, audit logs, and recovery status history.</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <h2 class="card-title">Important Technical Limitations &amp; Honesty</h2>
+      <span class="badge badge-warning">TECHNICAL BOUNDARIES</span>
+    </div>
+    <ul style="color:var(--text-secondary); font-size:0.9rem; padding-left:1.2rem;">
+      <li><strong>Hardware Power Button Limitation:</strong> A standard web application running in a browser sandbox cannot intercept physical hardware power buttons, prevent an actual phone OS from shutting down, or read hardware biometric sensors.</li>
+      <li><strong>Shutdown-Authentication is a Simulation:</strong> Our simulator demonstrates the user experience and security logic of pre-shutdown verification using a clearly labelled <em>Demo PIN</em> and mock biometric buttons.</li>
+      <li><strong>Active Browser Geolocation Only:</strong> Location sharing requires explicit user permission in an active browser session. A web page cannot track a phone when the browser is closed or after the device is powered off.</li>
+      <li><strong>Zero Collection of Real Unlock Credentials:</strong> SecurePhone never asks for or stores real phone-unlock PINs, passwords, patterns, or biometric templates.</li>
+    </ul>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <h2 class="card-title">Application Security &amp; Privacy Controls</h2>
+    <span class="badge badge-protected">DEFENSE IN DEPTH</span>
+  </div>
+  <div class="grid-3">
+    <div>
+      <h3 style="font-size:0.98rem; margin-top:0; color:var(--accent-cyan-hover);">1. Authentication &amp; RBAC</h3>
+      <p style="font-size:0.86rem; color:var(--text-secondary);">
+        Passwords are salted and hashed using Werkzeug PBKDF2/Scrypt. Every protected endpoint verifies both session authentication and strict ownership (`device.user_id == session['user_id']`) or administrator role privileges.
+      </p>
+    </div>
+    <div>
+      <h3 style="font-size:0.98rem; margin-top:0; color:var(--accent-cyan-hover);">2. Privacy-Preserving Matching</h3>
+      <p style="font-size:0.86rem; color:var(--text-secondary);">
+        Full IMEI numbers are never stored or exposed publicly—only optional last-4 alphanumeric tags are used for verification. Found-device reports never expose a device owner's private contact details or exact coordinates.
+      </p>
+    </div>
+    <div>
+      <h3 style="font-size:0.98rem; margin-top:0; color:var(--accent-cyan-hover);">3. CSRF, Rate Limiting &amp; Audit Trail</h3>
+      <p style="font-size:0.86rem; color:var(--text-secondary);">
+        All state-changing POST/JSON requests enforce cryptographic CSRF token validation. Sensitive routes are protected by per-IP rate limiting, and all critical actions are recorded in an immutable audit log.
+      </p>
+    </div>
+  </div>
+</div>
+{% endblock %}

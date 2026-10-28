@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% block title %}My Reports &amp; Recovery Cases — SecurePhone{% endblock %}
+
+{% block workspace_content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">My Incident Reports &amp; Recovery Cases</h1>
+    <p class="page-subtitle">View all lost/theft reports and found-device submissions linked to your account.</p>
+  </div>
+  <div style="display:flex; gap:0.5rem;">
+    <a href="{{ url_for('lost_mode_page') }}" class="btn btn-danger btn-sm">+ Report Missing Device</a>
+    <a href="{{ url_for('found_report_page') }}" class="btn btn-secondary btn-sm">+ Report Found Device</a>
+  </div>
+</div>
+
+<!-- Filter Bar -->
+<div class="card" style="margin-bottom:1.5rem;">
+  <form method="GET" action="{{ url_for('my_reports') }}" style="display:flex; align-items:center; gap:0.75rem; flex-wrap:wrap;">
+    <label for="status" style="font-size:0.88rem; font-weight:600;">Filter by Recovery Case Status:</label>
+    <select id="status" name="status" class="form-control" style="width:auto;" onchange="this.form.submit()">
+      <option value="">All Statuses</option>
+      {% for st in ['Pending', 'Under Verification', 'Match Found', 'Recovered', 'Closed', 'Rejected'] %}
+        <option value="{{ st }}" {% if status_filter == st %}selected{% endif %}>{{ st }}</option>
+      {% endfor %}
+    </select>
+    {% if status_filter %}
+      <a href="{{ url_for('my_reports') }}" class="btn btn-sm btn-secondary">Clear Filter</a>
+    {% endif %}
+  </form>
+</div>
+
+<!-- Owner's Lost / Theft Reports -->
+<div class="card" style="margin-bottom:1.5rem;">
+  <div class="card-header">
+    <h2 class="card-title">My Lost &amp; Theft Reports ({{ lost_reports|length }})</h2>
+  </div>
+  {% if lost_reports %}
+    <div class="table-responsive">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Case ID</th>
+            <th>Device</th>
+            <th>Incident</th>
+            <th>Last Known Location</th>
+            <th>Case Status</th>
+            <th>Potential Matches</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in lost_reports %}
+            <tr>
+              <td>
+                {% if r.case_number %}
+                  <code>{{ r.case_number }}</code>
+                {% else %}
+                  —
+                {% endif %}
+                {% if r.is_sample %}<span class="badge badge-sample">[SAMPLE DEMO]</span>{% endif %}
+              </td>
+              <td>{{ r.device_name }} ({{ r.brand }} {{ r.model }})</td>
+              <td><span class="badge badge-lost">{{ r.incident_type }}</span><br><small>{{ r.incident_time | local_time }}</small></td>
+              <td>
+                <strong>Detected Location:</strong> {{ r.last_known_location }}
+                {% if r.last_lat is not none and r.last_lng is not none %}
+                  {% set rep_links = build_map_links(r.last_lat, r.last_lng) %}
+                  {% if rep_links.google_maps %}
+                    <br><a href="{{ rep_links.google_maps }}" target="_blank" rel="noopener noreferrer" style="font-size:0.78rem;">View on Google Maps &nearr;</a>
+                  {% endif %}
+                  <details style="margin-top:0.25rem; font-size:0.76rem;">
+                    <summary style="cursor:pointer; font-weight:600;">GPS Coordinates</summary>
+                    <code>{{ "%.6f"|format(r.last_lat) }}, {{ "%.6f"|format(r.last_lng) }}</code>
+                    &bull; <code>{{ format_dms_coordinates(r.last_lat, r.last_lng) }}</code>
+                  </details>
+                {% endif %}
+              </td>
+              <td>
+                <span class="badge {% if r.case_status == 'Recovered' %}badge-recovered{% elif r.case_status == 'Match Found' %}badge-info{% else %}badge-warning{% endif %}">
+                  {{ r.case_status }}
+                </span>
+              </td>
+              <td>{{ r.match_count }} candidate(s)</td>
+              <td>
+                {% if r.case_number %}
+                  <a href="{{ url_for('case_details', case_number=r.case_number) }}" class="btn btn-sm btn-primary">Case Details</a>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="empty-state">
+      No lost or theft reports match your current filter.
+    </div>
+  {% endif %}
+</div>
+
+<!-- Found Reports Submitted by Signed-in User -->
+<div class="card">
+  <div class="card-header">
+    <h2 class="card-title">Found-Phone Reports Submitted by Me ({{ my_found_reports|length }})</h2>
+  </div>
+  {% if my_found_reports %}
+    <div class="table-responsive">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Report ID</th>
+            <th>Device Found</th>
+            <th>Location Found</th>
+            <th>Date Found</th>
+            <th>Review Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for f in my_found_reports %}
+            <tr>
+              <td><code>#{{ f.id }}</code></td>
+              <td>{{ f.brand }} {{ f.model }} ({{ f.color }})</td>
+              <td>{{ f.found_location }}</td>
+              <td><code>{{ f.date_found }}</code></td>
+              <td><span class="badge badge-info">{{ f.status }}</span></td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="empty-state">
+      You have not submitted any found-device reports while signed in.
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

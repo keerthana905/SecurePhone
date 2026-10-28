@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block title %}{% if mode == 'edit' %}Edit Device{% else %}Register Device{% endif %} — SecurePhone{% endblock %}
+
+{% block workspace_content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">{% if mode == 'edit' %}Edit Registered Device{% else %}Register a Mobile Device{% endif %}</h1>
+    <p class="page-subtitle">Store non-sensitive identification details to enable recovery matching and shutdown simulation.</p>
+  </div>
+  <a href="{{ url_for('devices_list') }}" class="btn btn-secondary">&larr; Back to Devices</a>
+</div>
+
+<div class="notice-box warning">
+  <strong>Privacy &amp; Credential Safeguard:</strong>
+  Never enter your real phone unlock PIN, password, pattern, or full 15-digit IMEI. Only enter an optional 4-character hardware suffix for verification and a dedicated <strong>Demo Simulation PIN</strong> for the web simulator.
+</div>
+
+<div class="card" style="max-width:740px;">
+  <form method="POST" action="{% if mode == 'edit' %}{{ url_for('device_edit', device_id=device.id) }}{% else %}{{ url_for('device_add') }}{% endif %}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <div class="grid-2">
+      <div class="form-group">
+        <label class="form-label" for="device_name">Device Nickname *</label>
+        <input type="text" id="device_name" name="device_name" class="form-control" required minlength="2" maxlength="80"
+               value="{{ device.get('device_name', '') if device else '' }}" placeholder="e.g., Personal Commuter Phone">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="os_type">Operating System *</label>
+        <select id="os_type" name="os_type" class="form-control">
+          {% set current_os = device.get('os_type', 'Android 15') if device else 'Android 15' %}
+          {% for os_opt in ['Android 15', 'Android 14', 'iOS 18', 'iOS 17', 'HarmonyOS / Other'] %}
+            <option value="{{ os_opt }}" {% if current_os == os_opt %}selected{% endif %}>{{ os_opt }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <div class="grid-3">
+      <div class="form-group">
+        <label class="form-label" for="brand">Brand *</label>
+        <input type="text" id="brand" name="brand" class="form-control" required maxlength="60"
+               value="{{ device.get('brand', '') if device else '' }}" placeholder="e.g., Samsung, Apple, Google">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="model">Model *</label>
+        <input type="text" id="model" name="model" class="form-control" required maxlength="80"
+               value="{{ device.get('model', '') if device else '' }}" placeholder="e.g., Galaxy S24, iPhone 15">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="color">Color / Finish *</label>
+        <input type="text" id="color" name="color" class="form-control" required maxlength="40"
+               value="{{ device.get('color', '') if device else '' }}" placeholder="e.g., Titanium Gray, Obsidian">
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="form-group">
+        <label class="form-label" for="identifier_last4">Last 4 Characters of Serial / IMEI (Optional)</label>
+        <input type="text" id="identifier_last4" name="identifier_last4" class="form-control" maxlength="4"
+               value="{{ device.get('identifier_last4', '') if device else '' }}" placeholder="e.g., 8492">
+        <span class="form-hint">We store at most 4 characters so your full hardware identifier is never exposed.</span>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="demo_sim_pin">Shutdown Simulator Demo PIN (4–6 digits) *</label>
+        <input type="text" id="demo_sim_pin" name="demo_sim_pin" class="form-control" required pattern="\d{4,6}" maxlength="6"
+               value="{{ device.get('demo_sim_pin', '2580') if device else '2580' }}" placeholder="2580">
+        <span class="form-hint">Used strictly inside the Shutdown-Authentication Simulator. Do NOT use your real PIN.</span>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label" for="lock_screen_notice">Simulated Lock-Screen Recovery Notice</label>
+      <input type="text" id="lock_screen_notice" name="lock_screen_notice" class="form-control" maxlength="200"
+             value="{{ device.get('lock_screen_notice', 'Protected by SecurePhone Smart City Recovery.') if device else 'Protected by SecurePhone Smart City Recovery.' }}">
+    </div>
+
+    <div style="display:flex; gap:0.75rem; margin-top:1.25rem; flex-wrap:wrap; align-items:center;">
+      <button type="submit" class="btn btn-primary">
+        {% if mode == 'edit' %}Save Device Changes{% else %}Register Device{% endif %}
+      </button>
+      <a href="{{ url_for('devices_list') }}" class="btn btn-secondary">Cancel</a>
+    </div>
+  </form>
+
+  {% if mode == 'edit' and device and device.id %}
+    <div style="margin-top:1.5rem; padding-top:1.1rem; border-top:1px solid var(--border-subtle); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.75rem;">
+      <span style="font-size:0.84rem; color:var(--text-secondary);">
+        No longer using this handset? Remove it from your registered devices list.
+      </span>
+      <form method="POST" action="{{ url_for('device_delete', device_id=device.id) }}" style="margin:0;" onsubmit="return confirm('Remove this device from your account?');">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="btn btn-sm btn-danger">Remove Device</button>
+      </form>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

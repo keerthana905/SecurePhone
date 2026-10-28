@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block title %}My Registered Devices — SecurePhone{% endblock %}
+
+{% block workspace_content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Registered Mobile Devices</h1>
+    <p class="page-subtitle">Manage your enrolled handsets, simulation demo PINs, and permission-based location sharing.</p>
+  </div>
+  <a href="{{ url_for('device_add') }}" class="btn btn-primary">+ Register New Device</a>
+</div>
+
+{% if devices %}
+  <div class="grid-2">
+    {% for d in devices %}
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">
+              {{ d.device_name }}
+              {% if d.is_sample %}<span class="badge badge-sample">[SAMPLE DEMO]</span>{% endif %}
+            </h2>
+            <span style="font-size:0.84rem; color:var(--text-muted);">{{ d.brand }} {{ d.model }} &bull; {{ d.color }} &bull; {{ d.os_type }}</span>
+          </div>
+          <span class="badge {% if d.status == 'Protected' %}badge-protected{% elif d.status == 'Lost' %}badge-lost{% else %}badge-info{% endif %}">
+            {{ d.status }}
+          </span>
+        </div>
+
+        <div style="font-size:0.86rem; color:var(--text-secondary); display:flex; flex-direction:column; gap:0.45rem; margin-bottom:1rem;">
+          <div>
+            <strong>Hardware Tag (Last 4):</strong>
+            <code>{{ d.identifier_last4 if d.identifier_last4 else 'Not Set' }}</code>
+            <span style="color:var(--text-muted); font-size:0.78rem;">(Full IMEI never stored/exposed)</span>
+          </div>
+          <div>
+            <strong>Simulator Demo PIN:</strong>
+            <code>{{ d.demo_sim_pin }}</code>
+            <span style="color:var(--text-muted); font-size:0.78rem;">(Simulation only)</span>
+          </div>
+          <div>
+            <strong>Location Sharing Permission:</strong>
+            {% if d.location_sharing_enabled %}
+              <span class="badge badge-protected">PERMITTED</span>
+            {% else %}
+              <span class="badge badge-warning">STOPPED</span>
+            {% endif %}
+          </div>
+          <div>
+            <strong>Detected Location:</strong>
+            {% if d.last_location_at %}
+              {% set dev_links = build_map_links(d.last_lat, d.last_lng) %}
+              <div style="margin-top:0.2rem; color:var(--text-primary); font-weight:600;">
+                {{ d.last_location_label or 'Address unavailable' }}
+              </div>
+              <div style="font-size:0.8rem; color:var(--text-secondary); margin-top:0.2rem;">
+                Last Updated: <code>{{ d.last_location_at | local_time }}</code>
+                {% if d.last_accuracy is not none %}
+                  &bull; GPS Accuracy: <code>&plusmn;{{ "%.0f"|format(d.last_accuracy) }} metres</code>
+                {% endif %}
+                {% if dev_links %}
+                  &bull; <a href="{{ dev_links.google_maps }}" target="_blank" rel="noopener noreferrer">View on Google Maps &nearr;</a>
+                {% endif %}
+              </div>
+              {% if d.last_lat is not none and d.last_lng is not none %}
+                <details {% if (d.last_location_label or 'Address unavailable') == 'Address unavailable' %}open{% endif %} style="margin-top:0.35rem; background:var(--bg-secondary); padding:0.4rem 0.65rem; border-radius:var(--radius-sm); border:1px solid var(--border-subtle);">
+                  <summary style="cursor:pointer; font-weight:700; color:var(--text-primary); font-size:0.78rem;">GPS Coordinates</summary>
+                  <div style="margin-top:0.25rem; font-size:0.78rem;">
+                    <code>{{ "%.6f"|format(d.last_lat) }}, {{ "%.6f"|format(d.last_lng) }}</code>
+                    &bull; <code>{{ format_dms_coordinates(d.last_lat, d.last_lng) }}</code>
+                  </div>
+                </details>
+              {% endif %}
+            {% else %}
+              <span style="color:var(--text-muted);">No location shared yet</span>
+            {% endif %}
+          </div>
+        </div>
+
+        <div style="display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center;">
+          <a href="{{ url_for('device_edit', device_id=d.id) }}" class="btn btn-sm btn-secondary">Edit Device</a>
+          <a href="{{ url_for('location_page', device_id=d.id) }}" class="btn btn-sm btn-secondary">Location &amp; Map</a>
+          <a href="{{ url_for('simulator', device_id=d.id) }}" class="btn btn-sm btn-secondary">Shutdown Simulator</a>
+          {% if d.status != 'Lost' %}
+            <a href="{{ url_for('lost_mode_page', device_id=d.id) }}" class="btn btn-sm btn-danger">Activate Lost Mode</a>
+          {% elif d.active_case_number %}
+            <a href="{{ url_for('case_details', case_number=d.active_case_number) }}" class="btn btn-sm btn-primary">
+              View Case {{ d.active_case_number }}
+            </a>
+          {% endif %}
+          <form method="POST" action="{{ url_for('device_delete', device_id=d.id) }}" style="margin:0; display:inline;" onsubmit="return confirm('Remove device {{ d.device_name }} from your account?');">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-sm btn-danger">Remove</button>
+          </form>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+{% else %}
+  <div class="card empty-state">
+    <h2 style="font-size:1.15rem; color:var(--text-primary); margin-top:0;">No Registered Devices Found</h2>
+    <p>Register your smartphone to test the Shutdown-Authentication Simulator, enable permission-based location sharing, or activate Lost Mode.</p>
+    <a href="{{ url_for('device_add') }}" class="btn btn-primary">+ Register Your First Device</a>
+  </div>
+{% endif %}
+{% endblock %}

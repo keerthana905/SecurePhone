@@ -1,0 +1,230 @@
+{% extends "base.html" %}
+{% block title %}Secure Family Emergency Location View — SecurePhone{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+{% endblock %}
+
+{% set family_track_content %}
+<div class="page-header">
+  <div>
+    <span class="badge badge-info">AUTHORIZED FAMILY EMERGENCY LOCATION VIEW</span>
+    <h1 class="page-title" style="margin-top:6px;">
+      Emergency Location Share: {{ share_session.device_name }}
+    </h1>
+    <p class="page-subtitle">
+      Shared by device owner <strong>{{ share_session.owner_name }}</strong>
+      {% if share_session.case_number %}&bull; Recovery Case Reference: <code>{{ share_session.case_number }}</code>{% endif %}
+    </p>
+  </div>
+
+  {% if current_user and current_user.id == share_session.user_id and not access_denied_reason %}
+    <form method="POST" action="{{ url_for('family_sharing_revoke', session_id=share_session.id) }}" style="margin:0;" onsubmit="return confirm('Immediately revoke this family tracking link and stop emergency location sharing?');">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="btn btn-danger btn-sm">Revoke Family Access &amp; Stop Sharing</button>
+    </form>
+  {% endif %}
+</div>
+
+{% if access_denied_reason %}
+  <!-- Revoked, Stopped after Recovery, or Expired Link Screen -->
+  <div class="card" style="max-width:680px; margin:24px auto; text-align:center; padding:32px 24px;">
+    {% if access_denied_reason == 'Stopped_Recovered' %}
+      <span class="badge badge-recovered" style="font-size:0.82rem;">DEVICE RECOVERED &bull; SHARING STOPPED</span>
+      <h2 style="margin:12px 0 8px; font-size:1.3rem;">Good News — Device Marked as Recovered</h2>
+      <p style="color:var(--text-secondary); font-size:0.9rem; margin-bottom:16px;">
+        Emergency location sharing for <strong>{{ share_session.device_name }}</strong> ({{ share_session.brand }} {{ share_session.model }})
+        was automatically stopped and this access link was revoked after the handset was marked as recovered
+        {% if share_session.stopped_at %}at <code>{{ share_session.stopped_at | local_time }}</code>{% endif %}.
+      </p>
+    {% elif access_denied_reason == 'Revoked' %}
+      <span class="badge badge-lost" style="font-size:0.82rem;">ACCESS LINK REVOKED</span>
+      <h2 style="margin:12px 0 8px; font-size:1.3rem;">Emergency Location Sharing Stopped</h2>
+      <p style="color:var(--text-secondary); font-size:0.9rem; margin-bottom:16px;">
+        The device owner (<strong>{{ share_session.owner_name }}</strong>) has revoked this family location-sharing link
+        {% if share_session.stopped_at %}at <code>{{ share_session.stopped_at | local_time }}</code>{% endif %}.
+        Location data is no longer accessible through this URL.
+      </p>
+    {% else %}
+      <span class="badge badge-warning" style="font-size:0.82rem;">ACCESS LINK EXPIRED</span>
+      <h2 style="margin:12px 0 8px; font-size:1.3rem;">This Family Tracking Link Has Expired</h2>
+      <p style="color:var(--text-secondary); font-size:0.9rem; margin-bottom:16px;">
+        For privacy and security, family location-sharing links expire automatically
+        (expired at <code>{{ share_session.expires_at | local_time }}</code>).
+        Ask the device owner to generate a new emergency share link if the device is still missing.
+      </p>
+    {% endif %}
+    <a href="{{ url_for('home') }}" class="btn btn-secondary btn-sm">Return to SecurePhone Home</a>
+  </div>
+{% else %}
+  <!-- Active Authorized Family Location View -->
+  <div class="notice-box" style="margin-bottom:20px;">
+    <strong>Location Currency &amp; Technical Scope Notice:</strong>
+    This page shows the latest location recorded with the owner's permission. It is labelled <strong>Live Location</strong> only while fresh GPS updates are actively arriving; otherwise it displays the <strong>Last Known Location</strong> and its actual recording time. Web applications cannot track a powered-off phone.
+  </div>
+
+  <div class="grid-2" style="margin-bottom:24px;">
+    <!-- Location & Incident Details Card -->
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h2 class="card-title">{{ share_session.brand }} {{ share_session.model }} ({{ share_session.color }})</h2>
+          <span class="contextual-match-note">
+            Session expires: <code>{{ share_session.expires_at | local_time }}</code>
+          </span>
+        </div>
+        <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+          <span id="family-device-status-badge" class="badge {% if share_session.device_status == 'Lost' %}badge-lost{% elif share_session.device_status == 'Recovered' %}badge-recovered{% else %}badge-protected{% endif %}">
+            Device: {{ share_session.device_status }}
+          </span>
+          <span id="family-freshness-badge" class="badge {% if freshness.is_live %}badge-protected{% else %}badge-warning{% endif %}">
+            {{ freshness.label }} ({{ freshness.age_human }})
+          </span>
+        </div>
+      </div>
+
+      <div class="location-summary-panel">
+        <div class="location-address-box">
+          <div class="location-address-text">
+            <strong>Detected Location:</strong>
+            <span id="family-readable-address">{{ share_session.last_location_label or 'Address unavailable' }}</span>
+          </div>
+        </div>
+
+        <div class="location-meta-grid">
+          <div class="location-meta-item">
+            <span class="location-meta-label">Last Updated (Local Time):</span>
+            <code id="family-recorded-time">{{ share_session.last_location_at | local_time }}</code>
+          </div>
+          <div class="location-meta-item">
+            <span class="location-meta-label">GPS Accuracy:</span>
+            <code id="family-gps-accuracy">&plusmn;{{ "%.0f"|format(share_session.last_accuracy or 15) }} metres</code>
+          </div>
+          <div class="location-meta-item">
+            <span class="location-meta-label">Recovery Case Ref:</span>
+            <code>{{ share_session.case_number or 'No open case' }}</code>
+          </div>
+          <div class="location-meta-item">
+            <span class="location-meta-label">Case Status:</span>
+            <code id="family-case-status">{{ share_session.case_status or 'Pending' }}</code>
+          </div>
+        </div>
+
+        {% if share_session.last_lat is not none and share_session.last_lng is not none %}
+          <details class="gps-details-box" {% if (share_session.last_location_label or 'Address unavailable') == 'Address unavailable' %}open{% endif %}>
+            <summary>GPS Details (GPS Coordinates)</summary>
+            <div class="gps-details-body">
+              <div><strong>Decimal:</strong> <code id="family-coords-decimal">{{ "%.6f"|format(share_session.last_lat) }}, {{ "%.6f"|format(share_session.last_lng) }}</code></div>
+              <div><strong>DMS:</strong> <code id="family-coords-dms">{{ format_dms_coordinates(share_session.last_lat, share_session.last_lng) }}</code></div>
+            </div>
+          </details>
+        {% endif %}
+
+        <div class="location-actions-row">
+          {% if map_links and map_links.google_maps %}
+            <a id="family-gmaps-link" href="{{ map_links.google_maps }}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-primary">
+              View on Google Maps &nearr;
+            </a>
+            <a id="family-osm-link" href="{{ map_links.osm }}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-secondary">
+              OpenStreetMap &nearr;
+            </a>
+          {% endif %}
+          <a href="{{ url_for('found_report_page') }}" class="btn btn-sm btn-secondary">
+            Report Sighting / Found Device
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Interactive Map Card -->
+    <div class="card">
+      <div class="card-header">
+        <h2 class="card-title">Shared Location Map</h2>
+        <span id="family-poll-indicator" style="font-size:0.76rem; color:var(--text-secondary);">
+          Auto-checking for permitted updates...
+        </span>
+      </div>
+      <div id="family-map-canvas" class="map-canvas"
+           data-lat="{{ share_session.last_lat or 12.9716 }}"
+           data-lng="{{ share_session.last_lng or 77.5946 }}"
+           data-token="{{ share_session.share_token }}">
+      </div>
+    </div>
+  </div>
+{% endif %}
+{% endset %}
+
+{% block workspace_content %}{{ family_track_content }}{% endblock %}
+{% block public_content %}{{ family_track_content }}{% endblock %}
+
+{% block extra_scripts %}
+{% if not access_denied_reason %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const mapEl = document.getElementById("family-map-canvas");
+  if (!mapEl || typeof L === "undefined") return;
+
+  let lat = parseFloat(mapEl.dataset.lat || "12.9716");
+  let lng = parseFloat(mapEl.dataset.lng || "77.5946");
+  const token = mapEl.dataset.token;
+
+  const map = L.map("family-map-canvas").setView([lat, lng], 16);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 19,
+    attribution: "&copy; OpenStreetMap contributors"
+  }).addTo(map);
+
+  const markerIcon = L.divIcon({
+    className: "cyber-map-marker-wrap",
+    html: '<div class="cyber-map-marker"></div>',
+    iconSize: [24, 24],
+    iconAnchor: [12, 24]
+  });
+
+  const marker = L.marker([lat, lng], { icon: markerIcon }).addTo(map);
+
+  // Poll every 12 seconds for any fresh permitted location updates while session is active
+  setInterval(async () => {
+    try {
+      const resp = await fetch(`/api/family/track/${encodeURIComponent(token)}/status`);
+      if (resp.status === 403 || resp.status === 410) {
+        window.location.reload();
+        return;
+      }
+      if (!resp.ok) return;
+      const data = await resp.json();
+      if (!data.ok) return;
+
+      if (typeof data.latitude === "number" && typeof data.longitude === "number") {
+        marker.setLatLng([data.latitude, data.longitude]);
+        const decEl = document.getElementById("family-coords-decimal");
+        if (decEl) decEl.textContent = `${data.latitude.toFixed(6)}, ${data.longitude.toFixed(6)}`;
+      }
+      const dmsEl = document.getElementById("family-coords-dms");
+      if (dmsEl && data.dms_coordinates) dmsEl.textContent = data.dms_coordinates;
+
+      const addrEl = document.getElementById("family-readable-address");
+      if (addrEl && data.readable_address) addrEl.textContent = data.readable_address;
+
+      const timeEl = document.getElementById("family-recorded-time");
+      if (timeEl && data.recorded_at_local) timeEl.textContent = data.recorded_at_local;
+
+      const accEl = document.getElementById("family-gps-accuracy");
+      if (accEl && data.accuracy != null) accEl.textContent = `±${Math.round(data.accuracy)} metres`;
+
+      const freshBadge = document.getElementById("family-freshness-badge");
+      if (freshBadge && data.freshness) {
+        freshBadge.textContent = `${data.freshness.label} (${data.freshness.age_human})`;
+        freshBadge.className = `badge ${data.freshness.is_live ? "badge-protected" : "badge-warning"}`;
+      }
+      const gmapsEl = document.getElementById("family-gmaps-link");
+      if (gmapsEl && data.map_links && data.map_links.google_maps) {
+        gmapsEl.href = data.map_links.google_maps;
+      }
+    } catch (e) {}
+  }, 12000);
+});
+</script>
+{% endif %}
+{% endblock %}

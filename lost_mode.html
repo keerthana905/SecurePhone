@@ -1,0 +1,266 @@
+{% extends "base.html" %}
+{% block title %}Activate Lost Mode &amp; Theft Reporting — SecurePhone{% endblock %}
+
+{% block workspace_content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Activate Lost Mode &amp; File Theft Report</h1>
+    <p class="page-subtitle">
+      Mark your registered device as Lost, generate a unique Smart City Recovery Case ID, and optionally alert verified family members with a secure location link.
+    </p>
+  </div>
+</div>
+
+<div class="notice-box warning">
+  <strong>Important Notice:</strong>
+  Activating Lost Mode updates your device status in the SecurePhone recovery registry and generates an official case ID. It does not remotely lock physical phone hardware outside this platform.
+</div>
+
+{% if devices %}
+  <div class="card" style="max-width:820px;">
+    <form id="lost-mode-form" method="POST" action="{{ url_for('lost_mode_page') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" id="fresh_lat" name="fresh_lat" value="">
+      <input type="hidden" id="fresh_lng" name="fresh_lng" value="">
+      <input type="hidden" id="fresh_accuracy" name="fresh_accuracy" value="">
+
+      <div class="grid-2">
+        <div class="form-group">
+          <label class="form-label" for="device_id">Select Registered Device *</label>
+          <select id="device_id" name="device_id" class="form-control" required>
+            {% for d in devices %}
+              <option value="{{ d.id }}" {% if selected_device_id == d.id or form_data.get('device_id')|int == d.id %}selected{% endif %}>
+                {{ d.device_name }} ({{ d.brand }} {{ d.model }} — Current: {{ d.status }})
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="incident_type">Incident Classification *</label>
+          <select id="incident_type" name="incident_type" class="form-control" required>
+            <option value="Lost" {% if form_data.get('incident_type') == 'Lost' %}selected{% endif %}>Lost / Misplaced</option>
+            <option value="Stolen" {% if form_data.get('incident_type') == 'Stolen' %}selected{% endif %}>Suspected Theft / Snatching</option>
+          </select>
+        </div>
+      </div>
+
+      {% set first_device = (devices | selectattr('id', 'equalto', selected_device_id) | first) or devices[0] %}
+      {% set default_place = first_device.last_location_label if first_device and first_device.last_location_label else '' %}
+      <div class="grid-2">
+        <div class="form-group">
+          <label class="form-label" for="incident_time">Approximate Incident Date &amp; Time (Local Time) *</label>
+          <input type="text" id="incident_time" name="incident_time" class="form-control" required maxlength="60"
+                 value="{{ form_data.get('incident_time', '27 Oct 2026, 02:00:00 PM IST') }}"
+                 placeholder="e.g., 27 Oct 2026, 02:00:00 PM IST">
+        </div>
+
+        <div class="form-group">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <label class="form-label" for="last_known_location">Detected Location (Last Known Place / Address) *</label>
+            <button type="button" id="btn-capture-lost-gps" class="btn btn-sm btn-secondary" style="height:24px; font-size:0.72rem; margin-bottom:4px;">
+              Use Fresh Browser GPS
+            </button>
+          </div>
+          <input type="text" id="last_known_location" name="last_known_location" class="form-control" required minlength="3" maxlength="200"
+                 value="{{ form_data.get('last_known_location', default_place) }}"
+                 placeholder="e.g., Sree Kanteerava Stadium, Rajaram Mohan Roy Road, Sampangirama Nagar, Bengaluru, Karnataka, India - 560001">
+          <span id="lost-gps-status" class="form-hint">Uses the latest permitted device location unless updated via browser geolocation.</span>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="description">Incident Description *</label>
+        <textarea id="description" name="description" class="form-control" rows="3" required minlength="10" maxlength="1000"
+                  placeholder="Describe how and where the device went missing...">{{ form_data.get('description', '') }}</textarea>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="distinguishing_features">Distinguishing Features (Case, Stickers, Screen Protector)</label>
+        <input type="text" id="distinguishing_features" name="distinguishing_features" class="form-control" maxlength="400"
+               value="{{ form_data.get('distinguishing_features', '') }}"
+               placeholder="e.g., Matte black rugged case, small corner scratch">
+        <span class="form-hint">Used by our Lost-and-Found matcher and administrators to verify physical matches.</span>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="lock_screen_notice">Simulated Lock-Screen Recovery Banner</label>
+        <input type="text" id="lock_screen_notice" name="lock_screen_notice" class="form-control" maxlength="200"
+               value="{{ form_data.get('lock_screen_notice', 'LOST DEVICE: Protected by SecurePhone. Please return to nearest Smart City Recovery Desk.') }}">
+      </div>
+
+      <!-- Emergency Location Sharing with Verified Family Contacts -->
+      <div style="background:var(--bg-secondary); border:1px solid var(--border-subtle); border-radius:var(--radius-md); padding:14px 16px; margin-bottom:16px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:8px;">
+          <strong style="font-size:0.9rem; color:var(--text-primary);">Share Location with Family (Emergency Recovery Alert)</strong>
+          <a href="{{ url_for('profile_page') }}#trusted-family-contacts" style="font-size:0.78rem;">Manage Family Contacts &rarr;</a>
+        </div>
+
+        {% if verified_contacts is defined and verified_contacts %}
+          <div style="font-size:0.8rem; color:var(--text-secondary); margin-bottom:10px; padding:8px 10px; border-left:3px solid var(--accent-primary); background:var(--bg-primary, transparent);">
+            <strong style="color:var(--text-primary);">AI Trusted Contact Alert:</strong> when you activate Lost Mode, SecurePhone automatically writes a short personalized alert with AI and sends it once to the selected verified contacts below. Your last-known location is included only if location sharing is enabled and you have given location consent.
+          </div>
+          <label class="checkbox-row" style="margin-bottom:10px;">
+            <input type="checkbox" id="notify_family_contacts" name="notify_family_contacts" checked>
+            <span>
+              <strong>Also create a secure family tracking link</strong> (live/last-known map with case reference) and include it in the alert.
+            </span>
+          </label>
+          <div style="display:flex; gap:12px; flex-wrap:wrap; padding-left:24px;">
+            {% for vc in verified_contacts %}
+              <label class="checkbox-row" style="font-size:0.82rem;">
+                <input type="checkbox" name="family_contact_ids" value="{{ vc.id }}" checked>
+                <span>{{ vc.contact_name }} ({{ vc.relationship }} &bull; <code>{{ vc.phone_number }}</code>)</span>
+              </label>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div style="font-size:0.82rem; color:var(--text-secondary);">
+            No verified family contacts found. <a href="{{ url_for('profile_page') }}#trusted-family-contacts">Add and verify a Trusted Family Contact</a> under Profile &amp; Privacy to send emergency family SMS alerts.
+          </div>
+        {% endif %}
+      </div>
+
+      <div style="display:flex; gap:0.75rem; align-items:center; margin-top:1.25rem;">
+        <button type="button" id="trigger-lost-confirm-btn" class="btn btn-primary">
+          Activate Lost Mode &amp; Generate Recovery Case
+        </button>
+        <a href="{{ url_for('owner_dashboard') }}" class="btn btn-secondary">Cancel</a>
+      </div>
+    </form>
+  </div>
+
+  <!-- Lost Mode & Theft Report History -->
+  <div class="card" style="margin-top:1.5rem;">
+    <div class="card-header">
+      <h2 class="card-title">My Lost Mode &amp; Incident Report History ({{ recent_lost_reports|length if recent_lost_reports is defined else 0 }})</h2>
+      <a href="{{ url_for('my_reports') }}" class="btn btn-sm btn-secondary">Open Full Reports View</a>
+    </div>
+    {% if recent_lost_reports is defined and recent_lost_reports %}
+      <div class="table-responsive">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Case ID</th>
+              <th>Device</th>
+              <th>Incident Type &amp; Time</th>
+              <th>Last Available Location</th>
+              <th>Case Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in recent_lost_reports %}
+              <tr>
+                <td>
+                  {% if r.case_number %}
+                    <code>{{ r.case_number }}</code>
+                  {% else %}
+                    —
+                  {% endif %}
+                </td>
+                <td>{{ r.device_name }} ({{ r.brand }} {{ r.model }})</td>
+                <td><span class="badge badge-lost">{{ r.incident_type }}</span><br><small>{{ r.incident_time | local_time }}</small></td>
+                <td>
+                  <strong>Detected Location:</strong> {{ r.last_known_location }}
+                  {% if r.last_lat is not none and r.last_lng is not none %}
+                    {% set lost_links = build_map_links(r.last_lat, r.last_lng) %}
+                    {% if lost_links.google_maps %}
+                      <br><a href="{{ lost_links.google_maps }}" target="_blank" rel="noopener noreferrer" style="font-size:0.78rem;">View on Google Maps &nearr;</a>
+                    {% endif %}
+                    <details style="margin-top:0.25rem; font-size:0.76rem;">
+                      <summary style="cursor:pointer; font-weight:600;">GPS Coordinates</summary>
+                      <code>{{ "%.6f"|format(r.last_lat) }}, {{ "%.6f"|format(r.last_lng) }}</code>
+                      &bull; <code>{{ format_dms_coordinates(r.last_lat, r.last_lng) }}</code>
+                    </details>
+                  {% endif %}
+                </td>
+                <td>
+                  <span class="badge {% if r.case_status == 'Recovered' %}badge-recovered{% elif r.case_status == 'Match Found' %}badge-info{% else %}badge-warning{% endif %}">
+                    {{ r.case_status or r.status }}
+                  </span>
+                </td>
+                <td>
+                  {% if r.case_number %}
+                    <a href="{{ url_for('case_details', case_number=r.case_number) }}" class="btn btn-sm btn-primary">Track Case</a>
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="empty-state">No lost or theft reports filed yet.</div>
+    {% endif %}
+  </div>
+
+  <!-- Confirmation Dialog Modal before submission -->
+  <div id="lost-confirm-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="modal-lost-title">
+    <div class="modal-dialog">
+      <span class="badge badge-warning">CONFIRM LOST MODE &amp; FAMILY ALERT</span>
+      <h2 id="modal-lost-title" style="margin:0.65rem 0 0.5rem; font-size:1.25rem;">Activate Lost Mode &amp; Notify Trusted Contacts?</h2>
+      <p style="font-size:0.9rem; color:var(--text-secondary); margin-bottom:1.25rem;">
+        Confirming will immediately mark your selected device as <strong>Lost</strong>, create an official incident report,
+        generate a unique <strong>Recovery Case ID</strong>, scan all found-device reports for potential matches, and
+        <strong>dispatch an emergency location alert with a secure tracking link to your selected verified family contacts</strong>.
+      </p>
+      <div style="display:flex; gap:0.75rem; justify-content:flex-end;">
+        <button type="button" id="cancel-lost-confirm-btn" class="btn btn-secondary">Review Details</button>
+        <button type="button" id="confirm-lost-submit-btn" class="btn btn-primary">Confirm &amp; Activate Lost Mode</button>
+      </div>
+    </div>
+  </div>
+{% else %}
+  <div class="card empty-state">
+    <p>You do not have any registered devices yet. Register your phone first to activate Lost Mode.</p>
+    <a href="{{ url_for('device_add') }}" class="btn btn-primary">+ Register a Device</a>
+  </div>
+{% endif %}
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const gpsBtn = document.getElementById("btn-capture-lost-gps");
+  const statusEl = document.getElementById("lost-gps-status");
+  const locInput = document.getElementById("last_known_location");
+  const latInput = document.getElementById("fresh_lat");
+  const lngInput = document.getElementById("fresh_lng");
+  const accInput = document.getElementById("fresh_accuracy");
+
+  if (gpsBtn && navigator.geolocation) {
+    gpsBtn.addEventListener("click", () => {
+      gpsBtn.disabled = true;
+      if (statusEl) statusEl.textContent = "Requesting browser geolocation permission...";
+      navigator.geolocation.getCurrentPosition(
+        async (pos) => {
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
+          const acc = pos.coords.accuracy || 15;
+          if (latInput) latInput.value = lat.toFixed(6);
+          if (lngInput) lngInput.value = lng.toFixed(6);
+          if (accInput) accInput.value = Math.round(acc);
+          if (statusEl) statusEl.textContent = `Captured fresh GPS (${lat.toFixed(5)}, ${lng.toFixed(5)}, ±${Math.round(acc)}m). Resolving address...`;
+          try {
+            const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`);
+            if (r.ok) {
+              const data = await r.json();
+              if (data && data.display_name && locInput) {
+                locInput.value = data.display_name.slice(0, 195);
+              }
+            }
+          } catch (e) {}
+          gpsBtn.disabled = false;
+        },
+        () => {
+          if (statusEl) statusEl.textContent = "Browser geolocation unavailable or permission denied; using last recorded device location.";
+          gpsBtn.disabled = false;
+        },
+        { enableHighAccuracy: true, timeout: 8000 }
+      );
+    });
+  }
+});
+</script>
+{% endblock %}

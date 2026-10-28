@@ -1,0 +1,339 @@
+{% extends "base.html" %}
+{% block title %}Profile &amp; Privacy Settings — SecurePhone{% endblock %}
+
+{% block workspace_content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Profile &amp; Privacy Settings</h1>
+    <p class="page-subtitle">Manage your account preferences, Trusted Family Contacts for emergency location sharing, and privacy controls.</p>
+  </div>
+</div>
+
+<!-- 1. Trusted Family Contacts Section -->
+<div class="card" id="trusted-family-contacts" style="margin-bottom:24px;">
+  <div class="card-header">
+    <div>
+      <h2 class="card-title">Trusted Family Contacts (Emergency Location Sharing)</h2>
+      <span class="contextual-match-note">
+        Pre-verified family contacts who can receive your live or last-known location and a secure tracking link when Lost Mode is activated.
+      </span>
+    </div>
+    <span class="badge {% if sms_provider_status.configured %}badge-protected{% else %}badge-warning{% endif %}">
+      {{ sms_provider_status.mode_label }}
+    </span>
+  </div>
+
+  {% if not sms_provider_status.configured %}
+    <div class="notice-box" style="margin-bottom:16px;">
+      <strong>SMS Gateway Test Mode Active:</strong>
+      Server-side SMS credentials (<code>TWILIO_ACCOUNT_SID</code> / <code>TWILIO_AUTH_TOKEN</code> / <code>TWILIO_FROM_NUMBER</code> or <code>SECUREPHONE_SMS_WEBHOOK_URL</code>) are not configured in the environment.
+      Verification codes and emergency alerts operate in <strong>clearly labelled Test Mode</strong> without claiming real cellular SMS delivery.
+    </div>
+  {% endif %}
+
+  <div class="grid-2" style="margin-bottom:20px;">
+    <!-- Add New Trusted Family Contact Form -->
+    <div style="background:var(--bg-secondary); border:1px solid var(--border-subtle); border-radius:var(--radius-md); padding:16px;">
+      <h3 style="margin:0 0 12px; font-size:0.95rem; color:var(--text-primary);">Add Trusted Family Contact</h3>
+      <form method="POST" action="{{ url_for('profile_page') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="action" value="add_trusted_contact">
+
+        <div class="grid-2" style="gap:12px;">
+          <div class="form-group" style="margin-bottom:12px;">
+            <label class="form-label" for="tc_contact_name">Contact Full Name *</label>
+            <input type="text" id="tc_contact_name" name="contact_name" class="form-control" required minlength="2" maxlength="100"
+                   placeholder="e.g., Meera Sharma">
+          </div>
+          <div class="form-group" style="margin-bottom:12px;">
+            <label class="form-label" for="tc_phone_number">Mobile Phone Number *</label>
+            <input type="tel" id="tc_phone_number" name="phone_number" class="form-control" required maxlength="30"
+                   placeholder="e.g., +91-98800-33445">
+          </div>
+        </div>
+
+        <div class="grid-2" style="gap:12px;">
+          <div class="form-group" style="margin-bottom:12px;">
+            <label class="form-label" for="tc_relationship">Relationship *</label>
+            <select id="tc_relationship" name="relationship" class="form-control">
+              <option value="Mother">Mother</option>
+              <option value="Father">Father</option>
+              <option value="Spouse / Partner">Spouse / Partner</option>
+              <option value="Sibling">Sibling</option>
+              <option value="Child">Child</option>
+              <option value="Trusted Family">Trusted Family</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin-bottom:12px;">
+            <label class="form-label" for="tc_preference">Notification Preference *</label>
+            <select id="tc_preference" name="notification_preference" class="form-control">
+              <option value="SMS + Secure Link">SMS + Secure Expiring Link</option>
+              <option value="SMS">SMS Text Summary Only</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group" style="margin-bottom:12px;">
+          <label class="form-label" for="tc_interval">Minimum Alert Interval (Minutes — Prevents Duplicate SMS Spam)</label>
+          <input type="number" id="tc_interval" name="min_alert_interval_minutes" class="form-control" min="1" max="180" value="15">
+        </div>
+
+        {% if user_devices %}
+          <div class="form-group" style="margin-bottom:12px;">
+            <label class="form-label">Select Eligible Devices for Alerts</label>
+            <div style="display:flex; flex-direction:column; gap:6px; background:var(--bg-primary); padding:10px; border-radius:var(--radius-sm); border:1px solid var(--border-subtle);">
+              {% for d in user_devices %}
+                <label class="checkbox-row" style="font-size:0.82rem;">
+                  <input type="checkbox" name="assigned_device_ids" value="{{ d.id }}" checked>
+                  <span>{{ d.device_name }} ({{ d.brand }} {{ d.model }})</span>
+                </label>
+              {% endfor %}
+            </div>
+          </div>
+        {% endif %}
+
+        <div class="form-group" style="margin-bottom:14px;">
+          <label class="checkbox-row" style="font-size:0.82rem;">
+            <input type="checkbox" name="consent_confirmed" required>
+            <span>
+              <strong>Consent Confirmation *:</strong> I confirm that this family member has consented to receive verification codes and emergency location alerts from SecurePhone.
+            </span>
+          </label>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-sm">+ Add Contact &amp; Generate Verification Code</button>
+      </form>
+    </div>
+
+    <!-- Existing Trusted Contacts List, Verification & Device Assignment -->
+    <div>
+      <h3 style="margin:0 0 12px; font-size:0.95rem; color:var(--text-primary);">
+        Enrolled Trusted Family Contacts ({{ trusted_contacts|length }})
+      </h3>
+
+      {% if trusted_contacts %}
+        <div style="display:flex; flex-direction:column; gap:12px;">
+          {% for tc in trusted_contacts %}
+            {% set assigned_ids = contact_devices_map.get(tc.id, []) %}
+            <div style="background:var(--bg-secondary); border:1px solid var(--border-subtle); border-radius:var(--radius-md); padding:14px;">
+              <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px; flex-wrap:wrap;">
+                <div>
+                  <strong style="color:var(--text-primary); font-size:0.92rem;">{{ tc.contact_name }}</strong>
+                  <span class="badge badge-info">{{ tc.relationship }}</span>
+                  <div style="font-size:0.8rem; color:var(--text-secondary); margin-top:2px;">
+                    Phone: <code>{{ tc.phone_number }}</code> &bull; Pref: {{ tc.notification_preference }} &bull; Throttle: {{ tc.min_alert_interval_minutes }}m
+                  </div>
+                </div>
+                <span class="badge {% if tc.verification_status == 'Verified' %}badge-protected{% else %}badge-warning{% endif %}">
+                  {{ tc.verification_status }}
+                </span>
+              </div>
+
+              <!-- Phone Verification Form if Pending Verification -->
+              {% if tc.verification_status != 'Verified' %}
+                <div style="margin-top:10px; padding:10px; background:var(--bg-primary); border:1px solid var(--border-subtle); border-radius:var(--radius-sm);">
+                  <div style="font-size:0.78rem; color:var(--text-secondary); margin-bottom:6px;">
+                    <strong>Phone Verification Required:</strong> Enter the 6-digit OTP to verify this family contact before sending emergency alerts.
+                    {% if not sms_provider_status.configured %}
+                      <span class="badge badge-sample">[TEST MODE OTP: {{ tc.verification_code }}]</span>
+                    {% endif %}
+                  </div>
+                  <form method="POST" action="{{ url_for('profile_page') }}" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="action" value="verify_trusted_contact">
+                    <input type="hidden" name="contact_id" value="{{ tc.id }}">
+                    <input type="text" name="verification_code" class="form-control form-control-sm" required maxlength="10"
+                           placeholder="6-digit OTP" value="{{ tc.verification_code if not sms_provider_status.configured else '' }}"
+                           style="width:130px;">
+                    <button type="submit" class="btn btn-sm btn-primary">Verify Phone</button>
+                  </form>
+                </div>
+              {% endif %}
+
+              <!-- Collapsible Edit & Per-Device Assignment + Remove Button -->
+              <div style="margin-top:10px; display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap;">
+                <details style="flex:1; min-width:220px;">
+                  <summary style="cursor:pointer; font-size:0.78rem; color:var(--accent-primary); font-weight:600;">
+                    Edit Contact &amp; Device Alerts ({{ assigned_ids|length }} device{{ 's' if assigned_ids|length != 1 else '' }})
+                  </summary>
+                  <form method="POST" action="{{ url_for('profile_page') }}" style="margin-top:8px; padding:10px; background:var(--bg-primary); border-radius:var(--radius-sm); border:1px solid var(--border-subtle);">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="action" value="edit_trusted_contact">
+                    <input type="hidden" name="contact_id" value="{{ tc.id }}">
+                    <div class="grid-2" style="gap:8px; margin-bottom:8px;">
+                      <input type="text" name="contact_name" class="form-control form-control-sm" value="{{ tc.contact_name }}" required style="width:100%;">
+                      <input type="tel" name="phone_number" class="form-control form-control-sm" value="{{ tc.phone_number }}" required style="width:100%;">
+                    </div>
+                    <div class="grid-2" style="gap:8px; margin-bottom:8px;">
+                      <input type="text" name="relationship" class="form-control form-control-sm" value="{{ tc.relationship }}" style="width:100%;">
+                      <select name="notification_preference" class="form-control form-control-sm" style="width:100%;">
+                        <option value="SMS + Secure Link" {% if tc.notification_preference == 'SMS + Secure Link' %}selected{% endif %}>SMS + Secure Link</option>
+                        <option value="SMS" {% if tc.notification_preference == 'SMS' %}selected{% endif %}>SMS Only</option>
+                      </select>
+                    </div>
+                    <div style="margin-bottom:8px;">
+                      <label style="font-size:0.74rem; color:var(--text-secondary);">Alert Interval (mins):</label>
+                      <input type="number" name="min_alert_interval_minutes" class="form-control form-control-sm" value="{{ tc.min_alert_interval_minutes }}" min="1" max="180">
+                    </div>
+                    {% if user_devices %}
+                      <div style="margin-bottom:8px;">
+                        <div style="font-size:0.74rem; color:var(--text-secondary); margin-bottom:4px;">Devices permitted to alert this contact:</div>
+                        {% for d in user_devices %}
+                          <label class="checkbox-row" style="font-size:0.78rem;">
+                            <input type="checkbox" name="assigned_device_ids" value="{{ d.id }}" {% if d.id in assigned_ids %}checked{% endif %}>
+                            <span>{{ d.device_name }}</span>
+                          </label>
+                        {% endfor %}
+                      </div>
+                    {% endif %}
+                    <button type="submit" class="btn btn-sm btn-secondary">Save Contact Changes</button>
+                  </form>
+                </details>
+
+                <form method="POST" action="{{ url_for('profile_page') }}" style="margin:0;" onsubmit="return confirm('Remove trusted contact {{ tc.contact_name }}?');">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <input type="hidden" name="action" value="delete_trusted_contact">
+                  <input type="hidden" name="contact_id" value="{{ tc.id }}">
+                  <button type="submit" class="btn btn-sm btn-danger">Remove</button>
+                </form>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="empty-state">
+          No trusted family contacts added yet. Add and verify a family member on the left to enable emergency location sharing.
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<div class="grid-2" style="margin-bottom:24px;">
+  <!-- Profile & Privacy Consent Form -->
+  <div class="card">
+    <div class="card-header">
+      <h2 class="card-title">Personal Profile &amp; Consent Preferences</h2>
+      <span class="badge badge-info">{{ current_user.role|upper }}</span>
+    </div>
+    <form method="POST" action="{{ url_for('profile_page') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="action" value="update_profile">
+
+      <div class="form-group">
+        <label class="form-label" for="email_ro">Registered Email Address</label>
+        <input type="email" id="email_ro" class="form-control" value="{{ current_user.email }}" disabled>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="full_name">Full Name *</label>
+        <input type="text" id="full_name" name="full_name" class="form-control" required minlength="2" maxlength="100"
+               value="{{ current_user.full_name }}">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="phone_number">Recovery Contact Phone</label>
+        <input type="tel" id="phone_number" name="phone_number" class="form-control" maxlength="30"
+               value="{{ current_user.phone_number }}">
+      </div>
+
+      <div class="form-group">
+        <label class="checkbox-row">
+          <input type="checkbox" name="location_consent" {% if current_user.location_consent %}checked{% endif %}>
+          <span>
+            <strong>Master Location-Sharing Consent:</strong> Allow me to enable browser-based location updates on selected devices. (Unchecking immediately stops sharing across all your devices.)
+          </span>
+        </label>
+      </div>
+
+      <div class="form-group">
+        <label class="checkbox-row">
+          <input type="checkbox" name="privacy_alerts" {% if current_user.privacy_alerts %}checked{% endif %}>
+          <span>Receive dashboard security alerts for recovery case updates and potential matches.</span>
+        </label>
+      </div>
+
+      <button type="submit" class="btn btn-primary">Save Profile &amp; Privacy Settings</button>
+    </form>
+  </div>
+
+  <!-- Password Update & One-Click Location Revocation -->
+  <div style="display:flex; flex-direction:column; gap:16px;">
+    <div class="card">
+      <div class="card-header">
+        <h2 class="card-title">Change Account Password</h2>
+      </div>
+      <form method="POST" action="{{ url_for('profile_page') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="action" value="change_password">
+
+        <div class="form-group">
+          <label class="form-label" for="current_password">Current Password *</label>
+          <input type="password" id="current_password" name="current_password" class="form-control" required>
+        </div>
+
+        <div class="grid-2">
+          <div class="form-group">
+            <label class="form-label" for="new_password">New Password *</label>
+            <input type="password" id="new_password" name="new_password" class="form-control" required minlength="8">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="confirm_password">Confirm New Password *</label>
+            <input type="password" id="confirm_password" name="confirm_password" class="form-control" required minlength="8">
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-secondary">Update Password</button>
+      </form>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h2 class="card-title">Instant Location &amp; Family Link Revocation</h2>
+        <span class="badge badge-warning">PRIVACY CONTROL</span>
+      </div>
+      <p style="font-size:0.86rem; color:var(--text-secondary); margin-top:0;">
+        Immediately disable permission-based location sharing and revoke all active family tracking links across all {{ user_devices|length }} of your registered devices with one click.
+      </p>
+      <form method="POST" action="{{ url_for('profile_page') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="action" value="revoke_all_location">
+        <button type="submit" class="btn btn-danger btn-sm">Stop Location Sharing &amp; Revoke All Family Links</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Personal Security Audit Log -->
+<div class="card">
+  <div class="card-header">
+    <h2 class="card-title">My Recent Account &amp; Security Activity</h2>
+  </div>
+  <div class="table-responsive">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Timestamp</th>
+          <th>Action</th>
+          <th>Target</th>
+          <th>Details</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for a in personal_audits %}
+          <tr>
+            <td><code>{{ a.created_at | local_time }}</code></td>
+            <td><code>{{ a.action }}</code></td>
+            <td><code>{{ a.target_type }}:{{ a.target_id }}</code></td>
+            <td>{{ a.details }}</td>
+          </tr>
+        {% else %}
+          <tr>
+            <td colspan="4" style="text-align:center; color:var(--text-muted);">No recent activity recorded.</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

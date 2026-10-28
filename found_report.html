@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block title %}Report a Found Phone — SecurePhone{% endblock %}
+
+{% set found_content %}
+<div class="page-header">
+  <div>
+    <span class="badge badge-info">FEATURE D &bull; GOOD SAMARITAN &amp; CIVIC FOUND PORTAL</span>
+    <h1 class="page-title" style="margin-top:0.35rem;">Report a Found Mobile Phone</h1>
+    <p class="page-subtitle">
+      Help reunite a missing device with its rightful owner. Submissions are automatically compared against active Lost Mode reports.
+    </p>
+  </div>
+</div>
+
+{% if request.args.get('submitted') %}
+  <div class="notice-box" style="border-left-color:var(--status-success);">
+    <strong>Found Report #{{ request.args.get('submitted') }} Recorded!</strong>
+    Our automated Lost-and-Found matching engine has evaluated your report against active recovery cases.
+    Smart City administrators will review any flagged matches and verify ownership before arranging device return.
+  </div>
+{% endif %}
+
+<div class="notice-box">
+  <strong>Privacy Guarantee:</strong>
+  We collect only necessary non-sensitive hardware attributes to identify potential matches. Device owners' private contact details and exact coordinates are never exposed publicly.
+</div>
+
+<div class="card" style="max-width:780px;">
+  <form method="POST" action="{{ url_for('found_report_page') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <div class="grid-2">
+      <div class="form-group">
+        <label class="form-label" for="reporter_name">Your Name (Finder / Precinct Officer) *</label>
+        <input type="text" id="reporter_name" name="reporter_name" class="form-control" required minlength="2" maxlength="100"
+               value="{{ form_data.get('reporter_name', current_user.full_name if current_user else '') }}"
+               placeholder="e.g., Ananya Verma">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="reporter_contact">Contact Email or Phone (For Admin Use Only) *</label>
+        <input type="text" id="reporter_contact" name="reporter_contact" class="form-control" required minlength="5" maxlength="120"
+               value="{{ form_data.get('reporter_contact', current_user.email if current_user else '') }}"
+               placeholder="finder@example.com or +91-98000-00000">
+        <span class="form-hint">Visible only to authorized recovery administrators—never shown publicly.</span>
+      </div>
+    </div>
+
+    <div class="grid-3">
+      <div class="form-group">
+        <label class="form-label" for="brand">Device Brand *</label>
+        <input type="text" id="brand" name="brand" class="form-control" required maxlength="60"
+               value="{{ form_data.get('brand', '') }}" placeholder="e.g., Apple, Samsung, Google">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="model">Approximate Model *</label>
+        <input type="text" id="model" name="model" class="form-control" required maxlength="80"
+               value="{{ form_data.get('model', '') }}" placeholder="e.g., iPhone 15 Pro, Galaxy S24">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="color">Device Color *</label>
+        <input type="text" id="color" name="color" class="form-control" required maxlength="40"
+               value="{{ form_data.get('color', '') }}" placeholder="e.g., Natural Titanium, Black">
+      </div>
+    </div>
+
+    <div class="grid-3">
+      <div class="form-group">
+        <label class="form-label" for="date_found">Date Found *</label>
+        <input type="date" id="date_found" name="date_found" class="form-control" required
+               value="{{ form_data.get('date_found', '2026-10-26') }}">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="found_location">General Location Found *</label>
+        <input type="text" id="found_location" name="found_location" class="form-control" required minlength="3" maxlength="200"
+               value="{{ form_data.get('found_location', '') }}" placeholder="e.g., Indiranagar Transit Hub Gate B">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="identifier_last4">Visible Last 4 Digits (Optional)</label>
+        <input type="text" id="identifier_last4" name="identifier_last4" class="form-control" maxlength="4"
+               value="{{ form_data.get('identifier_last4', '') }}" placeholder="e.g., 4109">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label" for="current_custody">Where is the Device Safely Held Right Now? *</label>
+      <input type="text" id="current_custody" name="current_custody" class="form-control" required maxlength="150"
+             value="{{ form_data.get('current_custody', 'Smart City Precinct Desk / Finder Safe Hold') }}">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label" for="description">Physical Condition, Case &amp; Distinguishing Details *</label>
+      <textarea id="description" name="description" class="form-control" rows="3" required minlength="10" maxlength="1000"
+                placeholder="Describe any protective case, stickers, lock-screen recovery notice, or condition...">{{ form_data.get('description', '') }}</textarea>
+    </div>
+
+    <button type="submit" class="btn btn-primary">Submit Found-Device Report &amp; Run Matcher</button>
+  </form>
+</div>
+{% endset %}
+
+{% block workspace_content %}{{ found_content }}{% endblock %}
+{% block public_content %}{{ found_content }}{% endblock %}

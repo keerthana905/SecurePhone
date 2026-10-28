@@ -1,0 +1,331 @@
+{% extends "base.html" %}
+{% block title %}Permission-Based Location Sharing &amp; Map — SecurePhone{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+{% endblock %}
+
+{% block workspace_content %}
+<div class="page-header">
+  <div>
+    <span class="badge badge-protected">FEATURE B &bull; CONSENT-DRIVEN GEOLOCATION &amp; REVERSE GEOCODING</span>
+    <h1 class="page-title" style="margin-top:0.35rem;">Permission-Based Location Sharing</h1>
+    <p class="page-subtitle">
+      Explicitly enable or stop location sharing for your registered devices. Coordinates are converted into readable street addresses and local timestamps (IST).
+    </p>
+  </div>
+</div>
+
+<div class="notice-box">
+  <strong>Privacy &amp; Browser Session Scope:</strong>
+  Location sharing requires your explicit browser permission and an active browser session. SecurePhone never tracks you secretly, respects OpenStreetMap Nominatim usage policies, and cannot track a device when the browser is inactive or the phone is powered off.
+</div>
+
+<div id="location-error-banner" class="notice-box hidden" role="alert"></div>
+
+{% if devices and selected_device %}
+  {% set map_links = build_map_links(selected_device.last_lat, selected_device.last_lng) %}
+  {% set initial_address = selected_device.last_location_label if selected_device.last_location_label else ('Address unavailable' if selected_device.last_lat is not none else 'No location recorded yet') %}
+  <div class="card" style="margin-bottom:1.5rem;">
+    <div class="card-header">
+      <form method="GET" action="{{ url_for('location_page') }}" style="display:flex; align-items:center; gap:0.75rem; flex-wrap:wrap;">
+        <label for="device_id" style="font-weight:600; font-size:0.9rem;">Select Device:</label>
+        <select id="device_id" name="device_id" class="form-control" style="width:auto; min-width:260px;" onchange="this.form.submit()">
+          {% for d in devices %}
+            <option value="{{ d.id }}" {% if d.id == selected_device.id %}selected{% endif %}>
+              {{ d.device_name }} ({{ d.brand }} {{ d.model }} — {{ d.status }})
+            </option>
+          {% endfor %}
+        </select>
+      </form>
+
+      <div style="display:flex; align-items:center; gap:0.65rem; flex-wrap:wrap;">
+        <span id="location-freshness-badge" class="badge {% if selected_device.last_lat is not none %}badge-warning{% else %}badge-info{% endif %}">
+          {% if selected_device.last_lat is not none %}LAST KNOWN LOCATION{% else %}AWAITING LOCATION FIX{% endif %}
+        </span>
+        <span id="sharing-status-badge" class="badge {% if selected_device.location_sharing_enabled %}badge-protected{% else %}badge-lost{% endif %}">
+          {% if selected_device.location_sharing_enabled %}SHARING PERMITTED (ACTIVE){% else %}SHARING STOPPED{% endif %}
+        </span>
+      </div>
+    </div>
+
+    <!-- Explicit Consent & Geolocation Action Bar -->
+    <div style="display:flex; gap:0.65rem; flex-wrap:wrap; margin-bottom:1.25rem;">
+      <button type="button" id="btn-enable-sharing" class="btn btn-secondary btn-sm"
+              {% if selected_device.location_sharing_enabled %}disabled{% endif %}>
+        Enable Sharing Permission
+      </button>
+
+      <button type="button" id="btn-browser-gps-fix" class="btn btn-primary btn-sm"
+              {% if not selected_device.location_sharing_enabled %}disabled{% endif %}>
+        Share My Live Location (Browser GPS)
+      </button>
+
+      <button type="button" id="btn-demo-smartcity-fix" class="btn btn-secondary btn-sm"
+              {% if not selected_device.location_sharing_enabled %}disabled{% endif %}
+              title="Safe fallback for desktop browsers without hardware GPS">
+        Record Demo Smart City Check-In [SAMPLE DEMO]
+      </button>
+
+      <button type="button" id="btn-test-example-coords" class="btn btn-secondary btn-sm"
+              {% if not selected_device.location_sharing_enabled %}disabled{% endif %}
+              title="Test reverse geocoding with 12.968271, 77.592483">
+        Test Example Coords (12.968271, 77.592483)
+      </button>
+
+      <button type="button" id="btn-stop-sharing" class="btn btn-danger btn-sm"
+              {% if not selected_device.location_sharing_enabled %}disabled{% endif %}>
+        Stop Sharing
+      </button>
+    </div>
+
+    <!-- Loading Indicator while retrieving readable address -->
+    <div id="address-loading-indicator" class="notice-box hidden" role="status" aria-live="polite" style="display:flex; align-items:center; gap:0.65rem; margin-bottom:1rem;">
+      <span style="width:16px; height:16px; border:2px solid var(--accent-primary); border-top-color:transparent; border-radius:50%; display:inline-block; animation:slowSpin 0.8s linear infinite;"></span>
+      <span>Retrieving exact readable address from OpenStreetMap Nominatim...</span>
+    </div>
+
+    <!-- Location Details Card (Detected Location, Local Time, GPS Accuracy, View on Google Maps, Collapsible GPS Coordinates) -->
+    <div class="card" style="background:var(--bg-secondary); border:1px solid var(--border-subtle); margin-bottom:1.25rem; padding:1.15rem;">
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:0.75rem; flex-wrap:wrap; margin-bottom:0.85rem;">
+        <div style="flex:1; min-width:240px;">
+          <div style="font-size:0.76rem; color:var(--accent-primary); text-transform:uppercase; font-weight:700; letter-spacing:0.06em;">
+            Current / Last Known Place
+          </div>
+          <div style="font-size:1.06rem; color:var(--text-primary); margin-top:0.28rem; line-height:1.5;">
+            <strong style="color:var(--accent-highlight);">Detected Location:</strong>
+            <span id="place-address-display" style="font-weight:700;">{{ initial_address }}</span>
+          </div>
+          <div style="font-size:0.76rem; color:var(--text-secondary); margin-top:0.28rem;">
+            <em>Note: Address resolution depends on available OpenStreetMap data and shows the best available street, neighbourhood, or locality when a specific building name is not mapped.</em>
+          </div>
+        </div>
+        <div id="view-on-map-links" style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+          {% if map_links.google_maps %}
+            <a id="link-google-maps" href="{{ map_links.google_maps }}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-primary">
+              View on Google Maps &nearr;
+            </a>
+            <a id="link-osm-map" href="{{ map_links.osm }}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-secondary">
+              OpenStreetMap &nearr;
+            </a>
+          {% else %}
+            <a id="link-google-maps" href="#" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-primary hidden">
+              View on Google Maps &nearr;
+            </a>
+            <a id="link-osm-map" href="#" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-secondary hidden">
+              OpenStreetMap &nearr;
+            </a>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="grid-2" style="gap:0.85rem; margin-bottom:0.85rem;">
+        <div style="background:var(--bg-card); padding:0.75rem 0.9rem; border-radius:var(--radius-sm); border:1px solid var(--border-subtle);">
+          <div style="font-size:0.74rem; color:var(--text-secondary); text-transform:uppercase; font-weight:600;">Last Updated (Local Time)</div>
+          <div id="last-time-display" style="font-family:var(--font-mono); font-size:0.88rem; color:var(--text-primary); margin-top:0.2rem;">
+            {% if selected_device.last_location_at %}
+              {{ selected_device.last_location_at | local_time }}
+            {% else %}
+              Awaiting first permitted location update
+            {% endif %}
+          </div>
+        </div>
+
+        <div style="background:var(--bg-card); padding:0.75rem 0.9rem; border-radius:var(--radius-sm); border:1px solid var(--border-subtle);">
+          <div style="font-size:0.74rem; color:var(--text-secondary); text-transform:uppercase; font-weight:600;">GPS Accuracy</div>
+          <div id="last-accuracy-display" style="font-family:var(--font-mono); font-size:0.88rem; color:var(--accent-primary); font-weight:700; margin-top:0.2rem;">
+            {% if selected_device.last_lat is not none %}
+              &plusmn;{{ "%.0f"|format(selected_device.last_accuracy or 15) }} metres
+            {% else %}
+              N/A
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      <!-- Collapsible GPS Coordinates Section (automatically open if Address unavailable) -->
+      <details id="gps-coords-details"
+               style="background:var(--bg-card); padding:0.65rem 0.9rem; border-radius:var(--radius-sm); border:1px solid var(--border-subtle);"
+               {% if initial_address == 'Address unavailable' %}open{% endif %}>
+        <summary style="cursor:pointer; font-size:0.82rem; font-weight:700; color:var(--accent-secondary); user-select:none;">
+          GPS Coordinates
+        </summary>
+        <div style="margin-top:0.5rem; font-family:var(--font-mono); font-size:0.85rem; color:var(--text-primary); display:flex; gap:1.25rem; flex-wrap:wrap;">
+          <div>
+            <span style="color:var(--text-secondary);">Decimal (Lat, Lng):</span>
+            <strong id="last-coords-display">
+              {% if selected_device.last_lat is not none and selected_device.last_lng is not none %}
+                {{ "%.6f"|format(selected_device.last_lat) }}, {{ "%.6f"|format(selected_device.last_lng) }}
+              {% else %}
+                No coordinates recorded yet
+              {% endif %}
+            </strong>
+          </div>
+          <div>
+            <span style="color:var(--text-secondary);">DMS Format:</span>
+            <strong id="last-dms-display">
+              {% if selected_device.last_lat is not none and selected_device.last_lng is not none %}
+                {{ format_dms_coordinates(selected_device.last_lat, selected_device.last_lng) }}
+              {% else %}
+                —
+              {% endif %}
+            </strong>
+          </div>
+        </div>
+      </details>
+    </div>
+
+    <!-- Interactive Leaflet + OpenStreetMap Canvas -->
+    <div id="device-map"
+         class="map-canvas"
+         data-device-id="{{ selected_device.id }}"
+         data-device-name="{{ selected_device.device_name }}"
+         data-device-brand="{{ selected_device.brand }}"
+         data-device-model="{{ selected_device.model }}"
+         data-sharing-enabled="{{ 'true' if selected_device.location_sharing_enabled else 'false' }}"
+         data-has-fix="{{ 'true' if selected_device.last_lat is not none else 'false' }}"
+         data-lat="{{ selected_device.last_lat if selected_device.last_lat is not none else 12.9716 }}"
+         data-lng="{{ selected_device.last_lng if selected_device.last_lng is not none else 77.5946 }}"
+         data-accuracy="{{ selected_device.last_accuracy if selected_device.last_accuracy is not none else 15 }}"
+         data-address="{{ initial_address }}"
+         data-local-time="{{ selected_device.last_location_at | local_time if selected_device.last_location_at else 'No timestamp' }}">
+    </div>
+  </div>
+
+  <!-- Trusted Contact SOS Alert Dispatch / Preview -->
+  <div class="card" style="margin-bottom:1.5rem;">
+    <div class="card-header">
+      <div>
+        <h2 class="card-title">Trusted Contact SOS Alert</h2>
+        <p style="margin:0.2rem 0 0; font-size:0.84rem; color:var(--text-secondary);">
+          Share a structured emergency location dispatch with a trusted family member or recovery officer. Clearly distinguishes live vs. last recorded coordinates.
+        </p>
+      </div>
+      <span id="sos-mode-badge" class="badge badge-warning">LAST RECORDED LOCATION</span>
+    </div>
+
+    {% set initial_sos = format_sos_alert_message(
+      selected_device.device_name,
+      selected_device.brand,
+      selected_device.model,
+      initial_address,
+      selected_device.last_lat,
+      selected_device.last_lng,
+      selected_device.last_accuracy,
+      selected_device.last_location_at,
+      False
+    ) if selected_device.last_lat is not none else 'No recorded location available yet. Enable location sharing and obtain a GPS fix first.' %}
+
+    <pre id="sos-alert-preview" style="background:var(--bg-secondary); color:var(--text-primary); padding:0.95rem 1.1rem; border-radius:var(--radius-sm); border:1px solid var(--border-subtle); font-family:var(--font-mono); font-size:0.82rem; white-space:pre-wrap; line-height:1.55; margin:0 0 0.9rem;">{{ initial_sos }}</pre>
+
+    <div style="display:flex; gap:0.65rem; align-items:center; flex-wrap:wrap;">
+      <input type="text" id="sos-trusted-contact" class="form-control" style="max-width:280px;"
+             placeholder="Trusted contact phone or email (optional)"
+             value="{{ current_user.phone_number or '' }}">
+      <button type="button" id="btn-send-sos" class="btn btn-primary btn-sm" {% if selected_device.last_lat is none %}disabled{% endif %}>
+        Prepare &amp; Save SOS Alert to Database
+      </button>
+      <button type="button" id="btn-copy-sos" class="btn btn-secondary btn-sm" {% if selected_device.last_lat is none %}disabled{% endif %}>
+        Copy SOS Message &amp; Map Link
+      </button>
+    </div>
+
+    <!-- Persisted SOS Alerts History -->
+    <div class="table-responsive" style="margin-top:1rem;">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>SOS ID</th>
+            <th>Dispatched At (IST)</th>
+            <th>Mode</th>
+            <th>Recipient Contact</th>
+            <th>Place / Address</th>
+          </tr>
+        </thead>
+        <tbody id="sos-history-body">
+          {% if sos_history is defined and sos_history %}
+            {% for s in sos_history %}
+              <tr>
+                <td><code>#{{ s.id }}</code></td>
+                <td><code>{{ s.created_at | local_time }}</code></td>
+                <td>
+                  <span class="badge {% if s.is_live %}badge-protected{% else %}badge-warning{% endif %}">
+                    {{ 'LIVE LOCATION' if s.is_live else 'LAST RECORDED' }}
+                  </span>
+                </td>
+                <td>{{ s.trusted_contact or 'Owner Self-Dispatch' }}</td>
+                <td>{{ s.readable_address }}</td>
+              </tr>
+            {% endfor %}
+          {% else %}
+            <tr class="empty-sos-row">
+              <td colspan="5" style="text-align:center; color:var(--text-muted);">
+                No SOS alerts saved for this device yet.
+              </td>
+            </tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Permitted Location Update History -->
+  <div class="card">
+    <div class="card-header">
+      <h2 class="card-title">Permitted Location History for {{ selected_device.device_name }}</h2>
+      <span class="badge badge-info">OWNER-ONLY PRIVATE LOG</span>
+    </div>
+    <div class="table-responsive">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Last Updated (Local Time)</th>
+            <th>Readable Place / Address</th>
+            <th>GPS Accuracy</th>
+            <th>Coordinates &amp; Map Link</th>
+            <th>Source</th>
+          </tr>
+        </thead>
+        <tbody id="location-history-body">
+          {% if location_history %}
+            {% for loc in location_history %}
+              {% set row_links = build_map_links(loc.latitude, loc.longitude) %}
+              <tr>
+                <td><code>{{ loc.recorded_at | local_time }}</code></td>
+                <td><strong>{{ loc.location_label or 'Address unavailable' }}</strong></td>
+                <td>&plusmn;{{ "%.0f"|format(loc.accuracy or 15) }} m</td>
+                <td>
+                  <code>{{ "%.5f"|format(loc.latitude) }}, {{ "%.5f"|format(loc.longitude) }}</code>
+                  {% if row_links %}
+                    <br>
+                    <a href="{{ row_links.google_maps }}" target="_blank" rel="noopener noreferrer" style="font-size:0.78rem;">Google Maps &nearr;</a>
+                    &bull;
+                    <a href="{{ row_links.osm }}" target="_blank" rel="noopener noreferrer" style="font-size:0.78rem;">OSM &nearr;</a>
+                  {% endif %}
+                </td>
+                <td><span class="badge badge-info">{{ loc.source }}</span></td>
+              </tr>
+            {% endfor %}
+          {% else %}
+            <tr class="empty-history-row">
+              <td colspan="5" style="text-align:center; color:var(--text-muted);">
+                No location updates recorded for this device yet. Enable sharing and click "Share My Live Location" above.
+              </td>
+            </tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+{% else %}
+  <div class="card empty-state">
+    <p>You need at least one registered device before enabling location sharing.</p>
+    <a href="{{ url_for('device_add') }}" class="btn btn-primary">+ Register a Device</a>
+  </div>
+{% endif %}
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script src="{{ url_for('static', filename='js/location.js') }}"></script>
+{% endblock %}

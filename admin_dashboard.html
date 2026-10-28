@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+{% block title %}Administrator Dashboard — SecurePhone{% endblock %}
+
+{% block workspace_content %}
+<div class="page-header">
+  <div>
+    <span class="badge badge-warning">FEATURE E &bull; SMART CITY ADMINISTRATOR COMMAND CENTER</span>
+    <h1 class="page-title" style="margin-top:0.35rem;">Administrator Oversight Dashboard</h1>
+    <p class="page-subtitle">Real-time operational metrics, unverified match queue, case distribution, and audit trail.</p>
+  </div>
+  <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+    <form method="POST" action="{{ url_for('admin_run_matching') }}" style="margin:0;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="btn btn-primary btn-sm">Run Automated Matching Scan</button>
+    </form>
+    <a href="{{ url_for('admin_management', tab='cases') }}" class="btn btn-secondary btn-sm">Manage All Cases &amp; Reports</a>
+  </div>
+</div>
+
+<!-- Clickable Live Database KPIs -->
+<div class="stats-grid">
+  <a href="{{ url_for('admin_management', tab='audit') }}" class="stat-card">
+    <div class="stat-card-top">
+      <span class="stat-label">Total Platform Users</span>
+      <span class="stat-icon" aria-hidden="true">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+      </span>
+    </div>
+    <span class="stat-value">{{ metrics.total_users }}</span>
+    <span class="stat-meta">Owners &amp; administrators &rarr;</span>
+  </a>
+
+  <a href="{{ url_for('admin_management', tab='cases') }}" class="stat-card">
+    <div class="stat-card-top">
+      <span class="stat-label">Registered Devices</span>
+      <span class="stat-icon" aria-hidden="true">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+      </span>
+    </div>
+    <span class="stat-value">{{ metrics.total_devices }}</span>
+    <span class="stat-meta">Enrolled in registry &rarr;</span>
+  </a>
+
+  <a href="{{ url_for('admin_management', tab='cases') }}" class="stat-card">
+    <div class="stat-card-top">
+      <span class="stat-label">Open Lost Reports</span>
+      <span class="stat-icon" aria-hidden="true">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      </span>
+    </div>
+    <span class="stat-value" style="color:var(--status-danger);">{{ metrics.open_lost_reports }}</span>
+    <span class="stat-meta">Active missing handsets &rarr;</span>
+  </a>
+
+  <a href="{{ url_for('admin_management', tab='found') }}" class="stat-card">
+    <div class="stat-card-top">
+      <span class="stat-label">Pending Found Reports</span>
+      <span class="stat-icon" aria-hidden="true">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      </span>
+    </div>
+    <span class="stat-value" style="color:var(--status-warning);">{{ metrics.pending_found_reports }}</span>
+    <span class="stat-meta">Inspect found submissions &rarr;</span>
+  </a>
+
+  <a href="{{ url_for('admin_management', tab='matches') }}" class="stat-card">
+    <div class="stat-card-top">
+      <span class="stat-label">Matches Awaiting Review</span>
+      <span class="stat-icon" aria-hidden="true">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/></svg>
+      </span>
+    </div>
+    <span class="stat-value" style="color:var(--accent-primary);">{{ metrics.unverified_matches }}</span>
+    <span class="stat-meta">Review candidate pairs &rarr;</span>
+  </a>
+
+  <a href="{{ url_for('admin_management', tab='cases', status='Recovered') }}" class="stat-card">
+    <div class="stat-card-top">
+      <span class="stat-label">Recovered Cases</span>
+      <span class="stat-icon" aria-hidden="true">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+      </span>
+    </div>
+    <span class="stat-value" style="color:var(--status-success);">{{ metrics.recovered_cases }}</span>
+    <span class="stat-meta">Ownership verified returns &rarr;</span>
+  </a>
+</div>
+
+<!-- Recovery Cases by Status Breakdown -->
+<div class="card" style="margin-bottom:1.5rem;">
+  <div class="card-header">
+    <h2 class="card-title">Recovery Cases by Lifecycle Status</h2>
+    <a href="{{ url_for('admin_management', tab='cases') }}" class="btn btn-sm btn-secondary">Filter Cases</a>
+  </div>
+  <div class="stats-grid" style="margin-bottom:0;">
+    {% for status_name, count in cases_by_status.items() %}
+      <a href="{{ url_for('admin_management', tab='cases', status=status_name) }}" class="stat-card" style="text-decoration:none;">
+        <span class="stat-label">{{ status_name }}</span>
+        <span class="stat-value" style="font-size:1.5rem;">{{ count }}</span>
+        <span class="stat-meta">View {{ status_name }} cases &rarr;</span>
+      </a>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="grid-2">
+  <!-- Potential Matches Awaiting Review -->
+  <div class="card">
+    <div class="card-header">
+      <h2 class="card-title">Potential Matches Awaiting Review</h2>
+      <a href="{{ url_for('admin_management', tab='matches') }}" class="btn btn-sm btn-primary">Open Match Queue</a>
+    </div>
+    {% if pending_matches %}
+      <div class="table-responsive">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Case ID</th>
+              <th>Score</th>
+              <th>Lost vs. Found</th>
+              <th>Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for m in pending_matches %}
+              <tr>
+                <td><code>{{ m.case_number }}</code></td>
+                <td><strong style="color:var(--accent-secondary);">{{ m.confidence_score }}%</strong></td>
+                <td>
+                  {{ m.lost_brand }} {{ m.lost_model }} ({{ m.lost_color }})<br>
+                  <small style="color:var(--text-secondary);">Found at: {{ m.found_location }}</small>
+                </td>
+                <td><span class="badge badge-warning">{{ m.status }}</span></td>
+                <td>
+                  <a href="{{ url_for('case_details', case_number=m.case_number) }}" class="btn btn-sm btn-secondary">Inspect</a>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="empty-state">No unverified potential matches pending review.</div>
+    {% endif %}
+  </div>
+
+  <!-- Recent Administrative & Platform Audit Activity -->
+  <div class="card">
+    <div class="card-header">
+      <h2 class="card-title">Recent Platform Audit Trail</h2>
+      <a href="{{ url_for('admin_management', tab='audit') }}" class="btn btn-sm btn-secondary">Full Audit Log</a>
+    </div>
+    <div class="table-responsive">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Time</th>
+            <th>Actor</th>
+            <th>Action</th>
+            <th>Details</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for a in recent_audits %}
+            <tr>
+              <td><code>{{ a.created_at | local_time }}</code></td>
+              <td>
+                <span class="badge badge-info">{{ a.actor_role|upper }}</span><br>
+                <small>{{ a.actor_email }}</small>
+              </td>
+              <td><code>{{ a.action }}</code></td>
+              <td>{{ a.details }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

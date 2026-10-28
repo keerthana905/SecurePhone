@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+  <title>{% block title %}SecurePhone — Protect. Locate. Recover.{% endblock %}</title>
+  <script>
+    (function () {
+      try {
+        var saved = localStorage.getItem("securephone_theme");
+        document.documentElement.setAttribute("data-theme", saved === "light" ? "light" : "dark");
+      } catch (e) {
+        document.documentElement.setAttribute("data-theme", "dark");
+      }
+    })();
+  </script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+  <!-- Slim Dismissible Smart City Security Notice Banner -->
+  <div id="top-security-banner" class="top-security-banner" role="region" aria-label="Platform Technical Scope Notice">
+    <div class="top-security-banner-inner">
+      <span class="cyber-dot" aria-hidden="true"></span>
+      <span class="top-security-banner-text">
+        <strong>Smart City Security Notice:</strong>
+        Shutdown authentication is an interactive <strong>educational simulation</strong>.
+        Location sharing is strictly <strong>permission-based</strong> during active sessions. Never enter real device PINs.
+      </span>
+      <button type="button" id="dismiss-security-banner-btn" class="banner-dismiss-btn" aria-label="Dismiss security notice" title="Dismiss notice">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+  </div>
+
+  {% set is_workspace = current_user and request.endpoint not in ('home', 'about', 'login', 'register') %}
+
+  <!-- Simplified Top Header Bar -->
+  <header class="navbar">
+    <div class="navbar-container">
+      <div class="navbar-left">
+        {% if is_workspace %}
+          <button type="button" id="sidebar-toggle-btn" class="icon-btn sidebar-toggle-btn" aria-label="Toggle workspace sidebar" title="Toggle sidebar">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/>
+            </svg>
+          </button>
+        {% endif %}
+
+        <a href="{{ url_for('home') }}" class="brand-logo">
+          <span class="brand-shield" aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              <rect x="9" y="7" width="6" height="10" rx="1"/>
+              <line x1="12" y1="15" x2="12.01" y2="15"/>
+            </svg>
+          </span>
+          <span class="brand-text-wrap">
+            <span class="brand-name">SecurePhone</span>
+            <span class="brand-tagline">Protect. Locate. Recover.</span>
+          </span>
+        </a>
+      </div>
+
+      <button type="button" id="mobile-nav-toggle" class="mobile-nav-toggle" aria-expanded="false" aria-controls="primary-nav-links" aria-label="Toggle navigation menu">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+        </svg>
+      </button>
+
+      <nav id="primary-nav-links" class="nav-links" aria-label="Main Navigation">
+        {% if current_user %}
+          <a href="{{ url_for('owner_dashboard') }}" class="nav-link {% if request.endpoint == 'owner_dashboard' %}active{% endif %}">Dashboard</a>
+          <a href="{{ url_for('devices_list') }}" class="nav-link {% if request.endpoint in ('devices_list', 'device_add', 'device_edit') %}active{% endif %}">Devices</a>
+          <a href="{{ url_for('location_page') }}" class="nav-link {% if request.endpoint == 'location_page' %}active{% endif %}">Location</a>
+          <a href="{{ url_for('simulator') }}" class="nav-link {% if request.endpoint == 'simulator' %}active{% endif %}">Simulator</a>
+          <a href="{{ url_for('my_reports') }}" class="nav-link {% if request.endpoint in ('my_reports', 'case_details', 'lost_mode_page', 'found_report_page') %}active{% endif %}">Recovery</a>
+          <a href="{{ url_for('about') }}" class="nav-link {% if request.endpoint == 'about' %}active{% endif %}">Security Architecture</a>
+          {% if current_user.role == 'admin' %}
+            <a href="{{ url_for('admin_dashboard') }}" class="nav-link nav-link-admin {% if request.endpoint in ('admin_dashboard', 'admin_management') %}active{% endif %}">Admin Center</a>
+          {% endif %}
+        {% else %}
+          <a href="{{ url_for('home') }}" class="nav-link {% if request.endpoint == 'home' %}active{% endif %}">Home</a>
+          <a href="{{ url_for('about') }}" class="nav-link {% if request.endpoint == 'about' %}active{% endif %}">About &amp; Security</a>
+          <a href="{{ url_for('simulator') }}" class="nav-link {% if request.endpoint == 'simulator' %}active{% endif %}">Shutdown Simulator</a>
+          <a href="{{ url_for('found_report_page') }}" class="nav-link {% if request.endpoint == 'found_report_page' %}active{% endif %}">Report Found Phone</a>
+        {% endif %}
+      </nav>
+
+      <div class="nav-actions">
+        {% if current_user %}
+          <!-- Compact Profile Dropdown Menu (Account Name, Role Badge, Theme Switch, Sign Out) -->
+          <div class="dropdown-wrapper" id="profile-dropdown-wrapper">
+            <button type="button" id="profile-menu-btn" class="profile-trigger-btn" aria-expanded="false" aria-haspopup="true" aria-controls="profile-dropdown-menu">
+              <span class="profile-avatar" aria-hidden="true">{{ current_user.full_name[:1] | upper }}</span>
+              <span class="profile-trigger-name">{{ current_user.full_name }}</span>
+              <span class="badge {% if current_user.role == 'admin' %}badge-warning{% else %}badge-info{% endif %} profile-role-badge">{{ current_user.role|upper }}</span>
+              <svg class="dropdown-caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+
+            <div id="profile-dropdown-menu" class="dropdown-menu dropdown-menu-right hidden" role="menu" aria-label="Account Menu">
+              <div class="dropdown-header">
+                <div class="dropdown-user-name">{{ current_user.full_name }}</div>
+                <div class="dropdown-user-email">{{ current_user.email }}</div>
+                <div style="margin-top:6px;">
+                  <span class="badge {% if current_user.role == 'admin' %}badge-warning{% else %}badge-info{% endif %}">{{ current_user.role|upper }} ACCOUNT</span>
+                </div>
+              </div>
+              <div class="dropdown-divider"></div>
+              <a href="{{ url_for('profile_page') }}" class="dropdown-item" role="menuitem">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                <span>Profile &amp; Privacy</span>
+              </a>
+              <button type="button" id="theme-toggle-btn" class="dropdown-item theme-toggle-btn" role="menuitem" title="Switch between Cyber Teal + Violet Dark and Light modes">
+                <span class="cyber-dot" aria-hidden="true"></span>
+                <span>Theme: <strong id="theme-toggle-label">Cyber Dark</strong></span>
+              </button>
+              <div class="dropdown-divider"></div>
+              <form method="POST" action="{{ url_for('logout') }}" style="margin:0;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="dropdown-item dropdown-item-danger" role="menuitem">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                  <span>Sign Out</span>
+                </button>
+              </form>
+            </div>
+          </div>
+        {% else %}
+          <button type="button" id="theme-toggle-btn" class="theme-toggle-btn" title="Switch between Cyber Teal + Violet Dark and Light modes">
+            <span class="cyber-dot" aria-hidden="true"></span>
+            <span id="theme-toggle-label">Cyber Dark</span>
+          </button>
+          <a href="{{ url_for('login') }}" class="btn btn-sm btn-secondary">Sign In</a>
+          <a href="{{ url_for('register') }}" class="btn btn-sm btn-primary">Register</a>
+        {% endif %}
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Application Content -->
+  <main class="app-shell">
+    {% if is_workspace %}
+      <div id="sidebar-backdrop" class="sidebar-backdrop hidden" aria-hidden="true"></div>
+      <div id="workspace-grid" class="workspace-grid">
+        <aside id="workspace-sidebar" class="sidebar-nav" aria-label="Workspace Navigation">
+          <div class="sidebar-top-row">
+            <span class="sidebar-brand-label">NAVIGATION</span>
+            <button type="button" id="sidebar-collapse-inner-btn" class="icon-btn sidebar-collapse-inner-btn" aria-label="Collapse or expand sidebar" title="Collapse / Expand Sidebar">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+            </button>
+          </div>
+
+          <!-- Group 1: Overview -->
+          <div class="sidebar-group">
+            <div class="sidebar-section-title">Overview</div>
+            <a href="{{ url_for('owner_dashboard') }}" class="sidebar-link {% if request.endpoint == 'owner_dashboard' %}active{% endif %}" title="Dashboard">
+              <svg class="sidebar-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
+              <span class="sidebar-link-text">Dashboard</span>
+            </a>
+          </div>
+
+          <!-- Group 2: Devices -->
+          <div class="sidebar-group">
+            <div class="sidebar-section-title">Devices</div>
+            <a href="{{ url_for('devices_list') }}" class="sidebar-link {% if request.endpoint in ('devices_list', 'device_edit') %}active{% endif %}" title="My Devices">
+              <svg class="sidebar-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+              <span class="sidebar-link-text">My Devices</span>
+            </a>
+            <a href="{{ url_for('device_add') }}" class="sidebar-link {% if request.endpoint == 'device_add' %}active{% endif %}" title="Register Device">
+              <svg class="sidebar-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+              <span class="sidebar-link-text">Register Device</span>
+            </a>
+          </div>
+
+          <!-- Group 3: Security -->
+          <div class="sidebar-group">
+            <div class="sidebar-section-title">Security</div>
+            <a href="{{ url_for('location_page') }}" class="sidebar-link {% if request.endpoint == 'location_page' %}active{% endif %}" title="Location Sharing">
+              <svg class="sidebar-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+              <span class="sidebar-link-text">Location Sharing</span>
+            </a>
+            <a href="{{ url_for('simulator') }}" class="sidebar-link {% if request.endpoint == 'simulator' %}active{% endif %}" title="Shutdown Simulator">
+              <svg class="sidebar-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
+              <span class="sidebar-link-text">Shutdown Simulator</span>
+            </a>
+          </div>
+
+          <!-- Group 4: Recovery -->
+          <div class="sidebar-group">
+            <div class="sidebar-section-title">Recovery</div>
+            <a href="{{ url_for('lost_mode_page') }}" class="sidebar-link {% if request.endpoint == 'lost_mode_page' %}active{% endif %}" title="Lost Mode">
+              <svg class="sidebar-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              <span class="sidebar-link-text">Lost Mode</span>
+            </a>
+            <a href="{{ url_for('found_report_page') }}" class="sidebar-link {% if request.endpoint == 'found_report_page' %}active{% endif %}" title="Report Found Phone">
+              <svg class="sidebar-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <span class="sidebar-link-text">Report Found Phone</span>
+            </a>
+            <a href="{{ url_for('my_reports') }}" class="sidebar-link {% if request.endpoint in ('my_reports', 'case_details') %}active{% endif %}" title="My Reports & Cases">
+              <svg class="sidebar-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              <span class="sidebar-link-text">My Reports &amp; Cases</span>
+            </a>
+          </div>
+
+          <!-- Group 5: Settings -->
+          <div class="sidebar-group">
+            <div class="sidebar-section-title">Settings</div>
+            <a href="{{ url_for('profile_page') }}" class="sidebar-link {% if request.endpoint == 'profile_page' %}active{% endif %}" title="Profile & Privacy">
+              <svg class="sidebar-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+              <span class="sidebar-link-text">Profile &amp; Privacy</span>
+            </a>
+          </div>
+
+          {% if current_user.role == 'admin' %}
+            <div class="sidebar-group">
+              <div class="sidebar-section-title" style="color:var(--accent-primary);">Administration</div>
+              <a href="{{ url_for('admin_dashboard') }}" class="sidebar-link {% if request.endpoint == 'admin_dashboard' %}active{% endif %}" title="Admin Dashboard">
+                <svg class="sidebar-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                <span class="sidebar-link-text">Admin Dashboard</span>
+              </a>
+              <a href="{{ url_for('admin_management', tab='cases') }}" class="sidebar-link {% if request.endpoint == 'admin_management' and request.args.get('tab', 'cases') == 'cases' %}active{% endif %}" title="Manage Cases">
+                <svg class="sidebar-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+                <span class="sidebar-link-text">Manage Cases</span>
+              </a>
+              <a href="{{ url_for('admin_management', tab='matches') }}" class="sidebar-link {% if request.endpoint == 'admin_management' and request.args.get('tab') == 'matches' %}active{% endif %}" title="Review Matches">
+                <svg class="sidebar-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <span class="sidebar-link-text">Review Matches</span>
+              </a>
+              <a href="{{ url_for('admin_management', tab='found') }}" class="sidebar-link {% if request.endpoint == 'admin_management' and request.args.get('tab') == 'found' %}active{% endif %}" title="Found Reports">
+                <svg class="sidebar-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/></svg>
+                <span class="sidebar-link-text">Found Reports</span>
+              </a>
+              <a href="{{ url_for('admin_management', tab='audit') }}" class="sidebar-link {% if request.endpoint == 'admin_management' and request.args.get('tab') == 'audit' %}active{% endif %}" title="Audit Logs">
+                <svg class="sidebar-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                <span class="sidebar-link-text">Audit Logs</span>
+              </a>
+            </div>
+          {% endif %}
+        </aside>
+
+        <section class="workspace-main">
+          {% block workspace_content %}{% endblock %}
+        </section>
+      </div>
+    {% else %}
+      {% block public_content %}{% endblock %}
+    {% endif %}
+  </main>
+
+  <!-- Toast Notification Stack -->
+  <div id="toast-stack" class="toast-stack" aria-live="polite">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="toast toast-{{ category }}" data-auto-dismiss="true" role="status">
+            <span>{{ message }}</span>
+            <button type="button" class="btn btn-sm btn-secondary" onclick="this.parentElement.remove()" aria-label="Dismiss">×</button>
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+  </div>
+
+  <!-- Footer -->
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <div>
+        <strong>SecurePhone</strong> — Intelligent Mobile Security &amp; Smart City Anti-Theft Platform &bull;
+        <em>Protect. Locate. Recover.</em>
+      </div>
+      <div>
+        <a href="{{ url_for('about') }}">Security &amp; Privacy Architecture</a> &bull;
+        <a href="{{ url_for('simulator') }}">Shutdown Simulator</a> &bull;
+        <a href="{{ url_for('found_report_page') }}">Found a Device?</a>
+      </div>
+    </div>
+  </footer>
+
+  <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+  {% block extra_scripts %}{% endblock %}
+</body>
+</html>

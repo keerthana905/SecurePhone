@@ -1,0 +1,566 @@
+{% extends "base.html" %}
+{% block title %}Security Overview — SecurePhone{% endblock %}
+
+{% block workspace_content %}
+<!-- 4. Redesigned Dashboard Heading -->
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Security Overview</h1>
+    <p class="page-subtitle">Monitor your devices, location status, and recovery cases.</p>
+  </div>
+
+  <!-- Single Primary "Quick Actions" Dropdown -->
+  <div class="dropdown-wrapper" id="quick-actions-wrapper">
+    <button type="button" id="quick-actions-btn" class="btn btn-primary" aria-expanded="false" aria-haspopup="true" aria-controls="quick-actions-menu">
+      <span>Quick Actions</span>
+      <svg class="dropdown-caret" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="6 9 12 15 18 9"/></svg>
+    </button>
+
+    <div id="quick-actions-menu" class="dropdown-menu dropdown-menu-right hidden" role="menu" aria-label="Quick Actions">
+      <a href="{{ url_for('device_add') }}" class="dropdown-item" role="menuitem">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+        <span>Add Device</span>
+      </a>
+      <a href="{{ url_for('location_page') }}" class="dropdown-item" role="menuitem">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+        <span>Share Location</span>
+      </a>
+      <a href="#family-emergency-sharing-card" class="dropdown-item" role="menuitem">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        <span>Share Location with Family</span>
+      </a>
+      <a href="{{ url_for('lost_mode_page') }}" class="dropdown-item" role="menuitem">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        <span>Activate Lost Mode</span>
+      </a>
+      <a href="{{ url_for('found_report_page') }}" class="dropdown-item" role="menuitem">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <span>Report Found Phone</span>
+      </a>
+    </div>
+  </div>
+</div>
+
+<!-- 5. Four Equally Sized, Compact Statistic Cards -->
+<div class="stats-grid stats-grid-4">
+  <a href="{{ url_for('devices_list') }}" class="stat-card">
+    <div class="stat-card-top">
+      <span class="stat-label">Registered Devices</span>
+      <span class="stat-icon" aria-hidden="true">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+      </span>
+    </div>
+    <span class="stat-value">{{ metrics.total_devices }}</span>
+    <span class="stat-meta">{{ metrics.protected_count }} Protected &bull; {{ metrics.lost_count }} Lost</span>
+  </a>
+
+  <a href="{{ url_for('location_page') }}" class="stat-card">
+    <div class="stat-card-top">
+      <span class="stat-label">Active Location Sharing</span>
+      <span class="stat-icon" aria-hidden="true">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+      </span>
+    </div>
+    <span class="stat-value" style="color:var(--accent-primary);">{{ metrics.sharing_active_count }}</span>
+    <span class="stat-meta">Permission-based consent</span>
+  </a>
+
+  <a href="{{ url_for('my_reports') }}" class="stat-card">
+    <div class="stat-card-top">
+      <span class="stat-label">Open Recovery Cases</span>
+      <span class="stat-icon" aria-hidden="true">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      </span>
+    </div>
+    <span class="stat-value" style="color:var(--accent-secondary);">{{ metrics.open_cases_count }}</span>
+    <span class="stat-meta">
+      {% if metrics.potential_matches_count > 0 %}
+        {{ metrics.potential_matches_count }} potential match{{ 'es' if metrics.potential_matches_count != 1 else '' }} detected
+      {% else %}
+        Active case tracking
+      {% endif %}
+    </span>
+  </a>
+
+  <a href="{{ url_for('my_reports', status='Recovered') }}" class="stat-card">
+    <div class="stat-card-top">
+      <span class="stat-label">Recovered Devices</span>
+      <span class="stat-icon" aria-hidden="true">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+      </span>
+    </div>
+    <span class="stat-value" style="color:var(--status-success);">{{ metrics.recovered_count }}</span>
+    <span class="stat-meta">Verified &amp; returned</span>
+  </a>
+</div>
+
+<!-- 6. Balanced Two-Column Main Dashboard Layout -->
+<div class="grid-2 dashboard-main-grid">
+  <!-- Left Column: Open Recovery Cases -->
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <h2 class="card-title">Open Recovery Cases</h2>
+        {% if metrics.potential_matches_count > 0 %}
+          <span class="contextual-match-note">
+            {{ metrics.potential_matches_count }} candidate match{{ 'es' if metrics.potential_matches_count != 1 else '' }} awaiting verification
+          </span>
+        {% endif %}
+      </div>
+      <form method="GET" action="{{ url_for('owner_dashboard') }}" class="card-header-actions">
+        <select name="status" class="form-control form-control-sm" onchange="this.form.submit()" aria-label="Filter cases by status">
+          <option value="">All Active</option>
+          {% for st in ['Pending', 'Under Verification', 'Match Found', 'Recovered'] %}
+            <option value="{{ st }}" {% if status_filter == st %}selected{% endif %}>{{ st }}</option>
+          {% endfor %}
+        </select>
+        <a href="{{ url_for('my_reports') }}" class="btn btn-sm btn-secondary">View All</a>
+      </form>
+    </div>
+
+    {% if open_cases %}
+      <div class="table-responsive">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Case ID</th>
+              <th>Device</th>
+              <th>Status</th>
+              <th>Matches</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for c in open_cases %}
+              <tr>
+                <td><code>{{ c.case_number }}</code></td>
+                <td>{{ c.brand }} {{ c.model }}</td>
+                <td>
+                  <span class="badge {% if c.status == 'Recovered' %}badge-recovered{% elif c.status == 'Match Found' %}badge-info{% else %}badge-warning{% endif %}">
+                    {{ c.status }}
+                  </span>
+                </td>
+                <td>
+                  {% if c.match_count > 0 %}
+                    <span style="color:var(--accent-primary); font-weight:600;">{{ c.match_count }} match{{ 'es' if c.match_count != 1 else '' }}</span>
+                  {% else %}
+                    <span style="color:var(--text-muted);">0</span>
+                  {% endif %}
+                </td>
+                <td>
+                  <a href="{{ url_for('case_details', case_number=c.case_number) }}" class="btn btn-sm btn-secondary">View Case</a>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <p style="margin:0 0 0.75rem;">No open recovery cases. All registered devices are accounted for.</p>
+        <a href="{{ url_for('lost_mode_page') }}" class="btn btn-sm btn-secondary">Activate Lost Mode</a>
+      </div>
+    {% endif %}
+  </div>
+
+  <!-- Right Column: Last Known Location -->
+  <div class="card">
+    <div class="card-header">
+      <h2 class="card-title">Last Known Location</h2>
+      {% if last_location %}
+        {% set loc_freshness = evaluate_location_freshness(last_location.recorded_at, last_location.location_sharing_enabled) %}
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span class="badge {% if loc_freshness.is_live %}badge-protected{% else %}badge-warning{% endif %}">
+            {{ loc_freshness.label }}
+          </span>
+          <a href="{{ url_for('location_page', device_id=last_location.device_id) }}" class="btn btn-sm btn-primary">View Map</a>
+        </div>
+      {% else %}
+        <a href="{{ url_for('location_page') }}" class="btn btn-sm btn-secondary">View Map</a>
+      {% endif %}
+    </div>
+
+    {% if last_location %}
+      {% set dash_links = build_map_links(last_location.latitude, last_location.longitude) %}
+      <div class="location-summary-panel">
+        <!-- Clear Device & Status Hierarchy -->
+        <div class="location-device-header">
+          <div class="location-device-title">{{ last_location.device_name }}</div>
+          <span class="badge {% if last_location.device_status == 'Lost' %}badge-lost{% else %}badge-protected{% endif %}">
+            {{ last_location.device_status }}
+          </span>
+        </div>
+
+        <!-- Readable Detected Location -->
+        <div class="location-address-box">
+          <div class="location-address-text">
+            <strong>Detected Location:</strong> {{ last_location.location_label or 'Address unavailable' }}
+          </div>
+        </div>
+
+        <!-- Timestamp & GPS Accuracy -->
+        <div class="location-meta-grid">
+          <div class="location-meta-item">
+            <span class="location-meta-label">Last Updated:</span>
+            <code>{{ last_location.recorded_at | local_time }}</code>
+          </div>
+          <div class="location-meta-item">
+            <span class="location-meta-label">GPS Accuracy:</span>
+            <code>&plusmn;{{ "%.0f"|format(last_location.accuracy or 15) }} metres</code>
+          </div>
+        </div>
+
+        <!-- Collapsible GPS Details (GPS Coordinates) -->
+        <details class="gps-details-box" {% if (last_location.location_label or 'Address unavailable') == 'Address unavailable' %}open{% endif %}>
+          <summary>GPS Details (GPS Coordinates)</summary>
+          <div class="gps-details-body">
+            <div><strong>Decimal:</strong> <code>{{ "%.6f"|format(last_location.latitude) }}, {{ "%.6f"|format(last_location.longitude) }}</code></div>
+            <div><strong>DMS:</strong> <code>{{ format_dms_coordinates(last_location.latitude, last_location.longitude) }}</code></div>
+          </div>
+        </details>
+
+        <!-- Clean Action Row -->
+        <div class="location-actions-row">
+          <a href="{{ url_for('location_page', device_id=last_location.device_id) }}" class="btn btn-sm btn-primary">
+            View Map &amp; SOS Alert
+          </a>
+          {% if dash_links and dash_links.google_maps %}
+            <a href="{{ dash_links.google_maps }}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-secondary">
+              View on Google Maps &nearr;
+            </a>
+          {% endif %}
+        </div>
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <p style="margin:0 0 0.75rem;">No location updates recorded yet.</p>
+        <a href="{{ url_for('location_page') }}" class="btn btn-sm btn-primary">Share Location</a>
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- 7. Compact "Family Emergency Sharing & AI Alerts" Card -->
+{% set sms_status = get_sms_provider_status() %}
+{% set ai_status = get_ai_provider_status() %}
+<div class="card" id="family-emergency-sharing-card" style="margin-bottom:32px;">
+  <div class="card-header">
+    <div>
+      <h2 class="card-title">Family Emergency Sharing &amp; AI Alerts</h2>
+      <span class="contextual-match-note">
+        AI-powered emergency notifications and live/last-known location tracking links sent automatically to verified contacts.
+      </span>
+    </div>
+    <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+      <span class="badge {% if ai_status.configured %}badge-protected{% else %}badge-warning{% endif %}">
+        {{ ai_status.mode_label }}
+      </span>
+      <span class="badge {% if sms_status.configured %}badge-protected{% else %}badge-warning{% endif %}">
+        {{ sms_status.mode_label }}
+      </span>
+      <a href="{{ url_for('profile_page') }}#trusted-family-contacts" class="btn btn-sm btn-secondary">
+        Manage Contacts ({{ metrics.verified_contacts_count }} Verified)
+      </a>
+    </div>
+  </div>
+
+  <!-- Summary Metrics Bar -->
+  <div class="location-meta-grid" style="grid-template-columns: repeat(4, minmax(0, 1fr)); margin-bottom:16px;">
+    <div class="location-meta-item">
+      <span class="location-meta-label">Verified Family Contacts</span>
+      <strong style="font-size:0.95rem; color:var(--text-primary);">{{ metrics.verified_contacts_count }} / {{ metrics.total_contacts_count }}</strong>
+    </div>
+    <div class="location-meta-item">
+      <span class="location-meta-label">Current Sharing Status</span>
+      <strong style="font-size:0.95rem; color:{% if active_family_sessions %}var(--accent-primary){% else %}var(--text-secondary){% endif %};">
+        {% if active_family_sessions %}Active ({{ active_family_sessions|length }} Device{{ 's' if active_family_sessions|length != 1 else '' }}){% else %}Standby{% endif %}
+      </strong>
+    </div>
+    <div class="location-meta-item">
+      <span class="location-meta-label">Last Known Location Time</span>
+      <code>{{ last_location.recorded_at | local_time if last_location else 'No location recorded' }}</code>
+    </div>
+    <div class="location-meta-item">
+      <span class="location-meta-label">Notification Gateway Status</span>
+      <span style="font-size:0.8rem; color:var(--text-primary);">
+        {% if recent_family_alerts %}
+          Latest: <code>{{ recent_family_alerts[0].delivery_status }}</code>
+        {% else %}
+          Ready ({{ 'Live SMS' if sms_status.configured else 'Test Mode' }})
+        {% endif %}
+      </span>
+    </div>
+  </div>
+
+  <!-- Quick "Share Location with Family" Trigger Form -->
+  {% if devices and verified_contacts %}
+    <form method="POST" action="{{ url_for('family_sharing_start') }}" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; background:var(--bg-secondary); padding:12px 14px; border-radius:var(--radius-sm); border:1px solid var(--border-subtle); margin-bottom:16px;" onsubmit="return confirm('Send emergency location alert and secure tracking link to your verified family contacts?');">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label for="family_share_device_id" style="font-size:0.82rem; font-weight:600; color:var(--text-primary);">Share Device:</label>
+      <select id="family_share_device_id" name="device_id" class="form-control form-control-sm" style="min-width:210px;">
+        {% for d in devices %}
+          <option value="{{ d.id }}">{{ d.device_name }} ({{ d.brand }} {{ d.model }} — {{ d.status }})</option>
+        {% endfor %}
+      </select>
+      <button type="submit" class="btn btn-sm btn-primary">Share Location with Family</button>
+    </form>
+  {% elif not verified_contacts %}
+    <div class="notice-box" style="margin-bottom:14px;">
+      You have no verified family contacts yet. <a href="{{ url_for('profile_page') }}#trusted-family-contacts">Add and verify a Trusted Family Contact</a> under Profile &amp; Privacy to enable emergency alerts.
+    </div>
+  {% endif %}
+
+  <!-- Active Family Share Sessions List -->
+  {% if active_family_sessions %}
+    <div style="display:flex; flex-direction:column; gap:8px; margin-bottom:14px;">
+      {% for fs in active_family_sessions %}
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; padding:10px 12px; background:var(--bg-secondary); border:1px solid var(--border-subtle); border-radius:var(--radius-sm);">
+          <div style="font-size:0.82rem;">
+            <strong style="color:var(--text-primary);">{{ fs.device_name }}</strong>
+            {% if fs.case_number %}&bull; Case <code>{{ fs.case_number }}</code>{% endif %}
+            &bull; Started: <code>{{ fs.started_at | local_time }}</code>
+            &bull; Expires: <code>{{ fs.expires_at | local_time }}</code>
+          </div>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <a href="{{ url_for('family_track_page', share_token=fs.share_token) }}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-secondary">
+              Open Secure Family Link &nearr;
+            </a>
+            <form method="POST" action="{{ url_for('family_sharing_revoke', session_id=fs.id) }}" style="margin:0;">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="btn btn-sm btn-danger">Stop Sharing &amp; Revoke</button>
+            </form>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  <!-- Recent Family Alert Notifications & Retry Options -->
+  {% if recent_family_alerts %}
+    <div class="table-responsive">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Time</th>
+            <th>Contact</th>
+            <th>Device &amp; Case</th>
+            <th>Notification Status</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for fa in recent_family_alerts %}
+            <tr>
+              <td><code>{{ fa.created_at | local_time }}</code></td>
+              <td>{{ fa.recipient_name }} (<code>{{ fa.recipient_phone }}</code>)</td>
+              <td>{{ fa.device_name }} {% if fa.case_number %}(<code>{{ fa.case_number }}</code>){% endif %}</td>
+              <td>
+                <span class="badge {% if fa.delivery_status == 'Delivered' %}badge-protected{% elif fa.delivery_status == 'Failed' %}badge-lost{% else %}badge-warning{% endif %}">
+                  {{ fa.delivery_status }}
+                </span>
+                {% if fa.error_message %}
+                  <div style="font-size:0.74rem; color:var(--text-secondary); margin-top:2px;">{{ fa.error_message }}</div>
+                {% endif %}
+              </td>
+              <td>
+                <form method="POST" action="{{ url_for('family_alert_retry', alert_id=fa.id) }}" style="margin:0;">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button type="submit" class="btn btn-sm btn-secondary">Retry</button>
+                </form>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}
+
+  <!-- Recent AI-Powered Trusted Contact Alerts -->
+  {% if recent_ai_alerts %}
+    <div style="margin-top:16px; padding-top:14px; border-top:1px solid var(--border-subtle);">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+        <strong style="font-size:0.88rem; color:var(--text-primary);">AI-Powered Trusted Contact Alerts (Lost Mode Events)</strong>
+        <span class="badge badge-info">{{ recent_ai_alerts|length }} Recorded</span>
+      </div>
+      <div class="table-responsive">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Timestamp</th>
+              <th>Recipient</th>
+              <th>Device &amp; Case</th>
+              <th>Generated Alert Message</th>
+              <th>Notification Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for aia in recent_ai_alerts %}
+              <tr>
+                <td><code>{{ aia.created_at | local_time }}</code></td>
+                <td>
+                  <strong>{{ aia.recipient_name }}</strong>
+                  <div style="font-size:0.72rem; color:var(--text-secondary);"><code>{{ aia.recipient_phone_masked }}</code></div>
+                </td>
+                <td>
+                  {{ aia.device_name }}
+                  {% if aia.case_number %}
+                    <div><a href="{{ url_for('case_details', case_number=aia.case_number) }}" style="font-size:0.74rem;"><code>{{ aia.case_number }}</code></a></div>
+                  {% endif %}
+                </td>
+                <td style="max-width:340px;">
+                  <div style="font-size:0.8rem; white-space:pre-wrap;">{{ aia.message_body }}</div>
+                  <div style="font-size:0.7rem; color:var(--text-secondary); margin-top:3px;">
+                    {% if aia.generation_status == 'AI_Generated' %}AI-Generated ({{ aia.ai_model }}){% else %}Template Fallback{% endif %}
+                    &bull; Location {% if aia.location_included %}Included{% else %}Not Included{% endif %}
+                  </div>
+                </td>
+                <td>
+                  <span class="badge {% if aia.notification_status == 'Delivered' %}badge-protected{% elif aia.notification_status == 'Failed' %}badge-lost{% elif aia.notification_status == 'Sent' %}badge-info{% else %}badge-warning{% endif %}">
+                    {% if aia.notification_status == 'Demo_Notification' %}Demo Notification (No Real SMS){% else %}{{ aia.notification_status }}{% endif %}
+                  </span>
+                  {% if aia.provider_error and aia.notification_status != 'Sent' %}
+                    <div style="font-size:0.72rem; color:var(--text-secondary); margin-top:2px;">{{ aia.provider_error }}</div>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if aia.case_number %}
+                    <a href="{{ url_for('case_details', case_number=aia.case_number) }}#ai-trusted-alerts" class="btn btn-sm btn-secondary">Details</a>
+                  {% endif %}
+                  {% if aia.notification_status == 'Failed' %}
+                    <form method="POST" action="{{ url_for('ai_alert_retry', alert_id=aia.id) }}" style="margin-top:4px;">
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                      <button type="submit" class="btn btn-sm btn-primary">Retry</button>
+                    </form>
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  {% endif %}
+</div>
+
+<!-- Separate Section Below: Recent Security Activity & Potential Matches -->
+<section class="dashboard-activity-section" aria-label="Recent Security Activity">
+  <div class="section-heading-row">
+    <h2 class="section-heading-title">Recent Security Activity</h2>
+    <a href="{{ url_for('my_reports') }}" class="section-heading-link">View All Reports &amp; Cases &rarr;</a>
+  </div>
+
+  <div class="grid-2">
+    <!-- Recent Recovery Case Timeline -->
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">Case Activity Timeline</h3>
+      </div>
+      {% if recent_case_history %}
+        <div class="table-responsive">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Case</th>
+                <th>Transition</th>
+                <th>Details</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for h in recent_case_history %}
+                <tr>
+                  <td><code>{{ h.created_at | local_time }}</code></td>
+                  <td><a href="{{ url_for('case_details', case_number=h.case_number) }}"><code>{{ h.case_number }}</code></a></td>
+                  <td>
+                    {% if h.old_status %}<span style="color:var(--text-muted);">{{ h.old_status }} &rarr;</span> {% endif %}
+                    <strong>{{ h.new_status }}</strong>
+                  </td>
+                  <td>{{ h.note }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="empty-state">No case status transitions recorded yet.</div>
+      {% endif %}
+    </div>
+
+    <!-- Potential Lost-and-Found Matches & Recent Incident Reports -->
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">Candidate Matches &amp; Incident Reports</h3>
+        {% if metrics.potential_matches_count > 0 %}
+          <span class="badge badge-info">{{ metrics.potential_matches_count }} Match{{ 'es' if metrics.potential_matches_count != 1 else '' }}</span>
+        {% endif %}
+      </div>
+
+      {% if owner_matches %}
+        <div class="table-responsive" style="margin-bottom:1rem;">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Case</th>
+                <th>Score</th>
+                <th>Found Device &amp; Location</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for m in owner_matches %}
+                <tr>
+                  <td><a href="{{ url_for('case_details', case_number=m.case_number) }}"><code>{{ m.case_number }}</code></a></td>
+                  <td><strong style="color:var(--accent-primary);">{{ m.confidence_score }}%</strong></td>
+                  <td>
+                    {{ m.found_brand }} {{ m.found_model }} ({{ m.found_color }})
+                    <div style="font-size:0.78rem; color:var(--text-secondary);">Found at: {{ m.found_location }}</div>
+                  </td>
+                  <td>
+                    <span class="badge {% if m.status == 'Approved' %}badge-protected{% else %}badge-warning{% endif %}">
+                      {{ m.status }}
+                    </span>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% endif %}
+
+      {% if recent_reports %}
+        <div class="table-responsive">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Incident</th>
+                <th>Device</th>
+                <th>Last Known Place</th>
+                <th>Case</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for r in recent_reports %}
+                <tr>
+                  <td><span class="badge badge-lost">{{ r.incident_type }}</span></td>
+                  <td>{{ r.device_name }}</td>
+                  <td>{{ r.last_known_location }}</td>
+                  <td>
+                    {% if r.case_number %}
+                      <a href="{{ url_for('case_details', case_number=r.case_number) }}"><code>{{ r.case_number }}</code></a>
+                    {% else %}
+                      —
+                    {% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% elif not owner_matches %}
+        <div class="empty-state">No incident reports or candidate matches recorded yet.</div>
+      {% endif %}
+    </div>
+  </div>
+</section>
+{% endblock %}

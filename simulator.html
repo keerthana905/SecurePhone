@@ -1,0 +1,365 @@
+{% extends "base.html" %}
+{% block title %}Shutdown Authentication Protection (Simulator) — SecurePhone{% endblock %}
+
+{% set sim_content %}
+<div class="page-header">
+  <div>
+    <span class="badge badge-warning">FEATURE A &bull; WEBSITE SIMULATION ONLY</span>
+    <h1 class="page-title" style="margin-top:0.35rem;">Shutdown Authentication Protection</h1>
+    <p class="page-subtitle">
+      Interactive virtual smartphone demonstrating how requiring identity verification before powering off a locked phone helps deter unauthorized shutdowns.
+    </p>
+  </div>
+</div>
+
+<!-- Mandatory Simulation Disclosure Notice -->
+<div class="notice-box warning">
+  <strong>Important Website Simulation Disclosure:</strong>
+  This feature is an <strong>educational website simulation</strong> running inside your browser. It does <strong>not</strong> intercept or control a physical phone's hardware power button or prevent a real device from shutting down. <strong>Never</strong> enter real phone-unlock PINs, passwords, fingerprint data, or biometric credentials.
+</div>
+
+<div class="simulator-layout">
+  <!-- Interactive Virtual Smartphone Chassis -->
+  <div class="phone-chassis-wrapper">
+    <button type="button"
+            id="sim-power-btn"
+            class="sim-power-btn"
+            title="Click or Hold Simulated Side Power Button"
+            aria-label="Click or Hold Simulated Power Button">
+      POWER
+    </button>
+
+    <div id="phone-chassis"
+         class="phone-chassis"
+         role="region"
+         aria-label="Simulated Smartphone Interface"
+         data-expected-pin="{{ selected_device.demo_sim_pin if selected_device else '2580' }}"
+         data-device-label="{{ selected_device.device_name if selected_device else 'Public Demo Virtual Handset' }}">
+      <div class="phone-notch"></div>
+      <div class="phone-screen">
+        <!-- Status Bar -->
+        <div class="phone-statusbar">
+          <span id="sim-network-status">SmartCity 5G &bull; Protected</span>
+          <span id="sim-battery-status">GPS ON &bull; 94%</span>
+        </div>
+
+        <!-- Lock Screen Clock & Device Info -->
+        <div class="phone-clock">
+          <div id="sim-clock-time" class="phone-clock-time">09:41</div>
+          <div class="phone-clock-date">Shutdown Authentication Protection Active</div>
+        </div>
+
+        <!-- Active Device Banner inside Virtual Handset -->
+        <div class="phone-lock-card">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.4rem;">
+            <strong style="color:var(--accent-highlight);">
+              {% if selected_device %}
+                {{ selected_device.brand }} {{ selected_device.model }}
+              {% else %}
+                Public Demo Virtual Handset
+              {% endif %}
+            </strong>
+            <span id="sim-handset-state-badge" class="badge {% if selected_device and selected_device.status == 'Lost' %}badge-lost{% else %}badge-protected{% endif %}">
+              {{ selected_device.status if selected_device else 'Protected' }}
+            </span>
+          </div>
+          <p style="margin:0; color:#B5B0C9; font-size:0.78rem;">
+            {{ selected_device.lock_screen_notice if selected_device else 'Protected by SecurePhone Smart City Platform. Identity verification required before shutdown.' }}
+          </p>
+        </div>
+
+        <!-- Bottom Power Button Action & Hold Progress Indicator -->
+        <div style="text-align:center;">
+          <button type="button" id="sim-trigger-power-btn" class="btn btn-primary btn-sm" style="width:100%;">
+            Click &amp; Hold Virtual Power Button
+          </button>
+          <div class="sim-hold-bar-track" aria-hidden="true">
+            <div id="sim-power-hold-fill" class="sim-hold-bar-fill"></div>
+          </div>
+          <span id="sim-hold-hint" style="display:block; font-size:0.71rem; color:#B5B0C9; margin-top:0.35rem;">
+            Hold (or click) the side <strong>POWER</strong> button to open the Shutdown Menu
+          </span>
+        </div>
+
+        <!-- OVERLAY 1: Shutdown Confirmation Interface -->
+        <div id="sim-confirm-overlay" class="phone-overlay hidden" role="dialog" aria-label="Simulated Shutdown Confirmation">
+          <span class="badge badge-warning" style="align-self:center; margin-bottom:0.55rem;">SIMULATED POWER MENU</span>
+          <h3 style="text-align:center; margin:0 0 0.45rem; font-size:1.1rem;">Power Off Virtual Phone?</h3>
+          <p style="text-align:center; font-size:0.8rem; color:#B5B0C9; margin-bottom:1.15rem;">
+            <strong>Shutdown Authentication Protection</strong> is enabled. You must verify your identity with a demo credential before this simulated shutdown can proceed.
+          </p>
+          <div style="display:flex; flex-direction:column; gap:0.55rem;">
+            <button type="button" id="sim-proceed-auth-btn" class="btn btn-primary">
+              Shutdown Simulation (Verify Identity)
+            </button>
+            <button type="button" id="sim-cancel-confirm-btn" class="btn btn-secondary">
+              Cancel (Keep Phone On)
+            </button>
+          </div>
+        </div>
+
+        <!-- OVERLAY 2: Security Verification Screen (Demo PIN / Mock Biometric) -->
+        <div id="sim-auth-overlay" class="phone-overlay hidden" role="dialog" aria-label="Security Verification Screen">
+          <!-- Glowing Electric Teal Fingerprint-Inspired Visual Ring -->
+          <div id="sim-auth-ring" class="teal-auth-ring" aria-hidden="true">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M2 12C2 6.5 6.5 2 12 2a10 10 0 0 1 8 4"/>
+              <path d="M5 19.5C5.5 18 6 15 6 12c0-.7.12-1.37.34-2"/>
+              <path d="M17.29 21.02c.12-.6.43-2.3.5-3.02"/>
+              <path d="M12 10a2 2 0 0 0-2 2c0 1.02-.1 2.51-.26 4"/>
+              <path d="M8.65 22c.21-.66.45-1.32.57-2"/>
+              <path d="M14 13.12c0 2.38 0 6.38-1 8.88"/>
+              <path d="M18 11c0 1.54-.04 3.08-.12 4"/>
+            </svg>
+          </div>
+
+          <h3 style="text-align:center; margin:0 0 0.15rem; font-size:0.96rem;">Security Verification Required</h3>
+          <p style="text-align:center; font-size:0.71rem; color:#B5B0C9; margin:0 0 0.35rem;">
+            Authorized Demo PIN:
+            <code id="sim-expected-pin-code" style="color:#35E0CF; font-weight:700;">{{ selected_device.demo_sim_pin if selected_device else '2580' }}</code>
+            <span style="opacity:0.85;">(Simulation only)</span>
+          </p>
+
+          <!-- Quick Fill Helpers for Fast Testing -->
+          <div style="display:flex; justify-content:center; gap:0.4rem; margin-bottom:0.4rem;">
+            <button type="button" id="sim-fill-valid-pin" class="badge badge-protected" style="cursor:pointer; border:none;">
+              Auto-Fill Valid ({{ selected_device.demo_sim_pin if selected_device else '2580' }})
+            </button>
+            <button type="button" id="sim-fill-wrong-pin" class="badge badge-lost" style="cursor:pointer; border:none;">
+              Auto-Fill Wrong (0000)
+            </button>
+          </div>
+
+          <div id="sim-auth-error-msg" class="hidden" role="alert" style="background:rgba(255, 101, 122, 0.18); border:1px solid #FF657A; color:#FF657A; font-size:0.72rem; padding:0.32rem 0.5rem; border-radius:6px; text-align:center; margin-bottom:0.35rem;">
+          </div>
+
+          <input type="password" id="sim-demo-pin-input" class="form-control" maxlength="6"
+                 placeholder="Enter Demo PIN" aria-label="Enter Demo Simulation PIN"
+                 autocomplete="off"
+                 style="text-align:center; font-family:var(--font-mono); letter-spacing:0.25em; font-size:0.98rem; padding:0.4rem;">
+
+          <div class="pin-keypad" aria-label="Simulated PIN Keypad">
+            {% for d in ['1','2','3','4','5','6','7','8','9'] %}
+              <button type="button" class="pin-key" data-digit="{{ d }}">{{ d }}</button>
+            {% endfor %}
+            <button type="button" class="pin-key" data-digit="clear" style="font-size:0.72rem;">CLR</button>
+            <button type="button" class="pin-key" data-digit="0">0</button>
+            <button type="button" class="pin-key" data-digit="back" style="font-size:0.72rem;">DEL</button>
+          </div>
+
+          <button type="button" id="sim-verify-pin-btn" class="btn btn-primary btn-sm" style="width:100%; margin-bottom:0.4rem;">
+            Verify &amp; Shutdown Simulation
+          </button>
+
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.4rem; margin-bottom:0.4rem;">
+            <button type="button" id="sim-bio-pass-btn" class="btn btn-sm btn-success" style="font-size:0.7rem;">
+              Demo Biometric (Pass)
+            </button>
+            <button type="button" id="sim-bio-fail-btn" class="btn btn-sm btn-danger" style="font-size:0.7rem;">
+              Demo Biometric (Fail)
+            </button>
+          </div>
+
+          <button type="button" id="sim-cancel-auth-btn" class="btn btn-sm btn-secondary" style="width:100%;">
+            Cancel
+          </button>
+        </div>
+
+        <!-- OVERLAY 3: Simulated Shutdown Animation Screen -->
+        <div id="sim-shutdown-anim-overlay" class="phone-overlay hidden" role="status" aria-live="polite" aria-label="Simulated Shutdown In Progress">
+          <div style="text-align:center;">
+            <div class="sim-shutdown-spinner" aria-hidden="true"></div>
+            <span class="badge badge-protected">IDENTITY VERIFIED</span>
+            <h3 style="margin:0.65rem 0 0.35rem; font-size:1.05rem;">Shutting Down Virtual Phone...</h3>
+            <p style="font-size:0.78rem; color:#B5B0C9; margin:0 0 0.85rem;">
+              Executing authorized shutdown sequence (Website Simulation)
+            </p>
+            <div class="sim-hold-bar-track">
+              <div id="sim-shutdown-anim-bar" class="sim-hold-bar-fill" style="width:0%; transition:width 0.9s ease-out;"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- OVERLAY 4: Verification Failed / Blocked Screen (and General Outcome Screen) -->
+        <div id="sim-result-overlay" class="phone-overlay hidden" role="dialog" aria-label="Verification Failure Alert">
+          <div style="text-align:center;">
+            <span id="sim-result-badge" class="badge badge-lost">SHUTDOWN BLOCKED (ANTI-THEFT ACTIVE)</span>
+            <h3 id="sim-result-title" style="margin:0.65rem 0 0.45rem; font-size:1.12rem;">Verification Failed — Shutdown Prevented</h3>
+            <p id="sim-result-desc" style="font-size:0.8rem; color:#B5B0C9; margin-bottom:1.15rem;"></p>
+            <div style="display:flex; flex-direction:column; gap:0.5rem;">
+              <button type="button" id="sim-retry-btn" class="btn btn-primary btn-sm">Retry Verification</button>
+              <button type="button" id="sim-reset-btn" class="btn btn-secondary btn-sm">Cancel (Return to Lock Screen)</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- OVERLAY 5: Device Powered Off (Simulation) Screen -->
+        <div id="sim-powered-off-overlay" class="phone-overlay phone-overlay-powered-off hidden" role="dialog" aria-label="Device Powered Off Simulation Screen">
+          <div style="text-align:center;">
+            <div style="width:62px; height:62px; border-radius:50%; margin:0 auto 0.75rem; border:2px solid #55D6A7; background:rgba(85, 214, 167, 0.12); display:flex; align-items:center; justify-content:center; color:#55D6A7; box-shadow:0 0 22px rgba(85, 214, 167, 0.32);">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M18.36 6.64a9 9 0 1 1-12.73 0"/>
+                <line x1="12" y1="2" x2="12" y2="12"/>
+              </svg>
+            </div>
+            <span class="badge badge-protected">AUTHORIZED SHUTDOWN COMPLETE</span>
+            <h3 id="sim-powered-off-title" style="margin:0.65rem 0 0.4rem; font-size:1.15rem; color:#F5F4FF;">
+              Device Powered Off (Simulation)
+            </h3>
+            <p id="sim-powered-off-desc" style="font-size:0.79rem; color:#B5B0C9; margin:0 0 1.25rem; line-height:1.45;">
+              Identity verification succeeded. The virtual smartphone is now in a simulated powered-off state.
+            </p>
+            <button type="button" id="sim-restart-phone-btn" class="btn btn-primary btn-sm" style="width:100%;">
+              Restart Virtual Phone &amp; Try Again
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right Column: Controls, Quick Test Actions & Security Event Log -->
+  <div style="display:flex; flex-direction:column; gap:1.25rem;">
+    <div class="card">
+      <div class="card-header">
+        <h2 class="card-title">Shutdown Authentication Protection Controls</h2>
+        <span class="badge badge-info">WEBSITE SIMULATION</span>
+      </div>
+
+      {% if current_user and devices %}
+        <form method="GET" action="{{ url_for('simulator') }}" style="margin-bottom:1rem;">
+          <label class="form-label" for="sim-device-select">Select Registered Device Profile for Simulation</label>
+          <div style="display:flex; gap:0.5rem;">
+            <select id="sim-device-select" name="device_id" class="form-control" onchange="this.form.submit()">
+              {% for d in devices %}
+                <option value="{{ d.id }}" {% if selected_device and selected_device.id == d.id %}selected{% endif %}>
+                  {{ d.device_name }} ({{ d.brand }} {{ d.model }} — Demo PIN: {{ d.demo_sim_pin }})
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+        </form>
+      {% else %}
+        <p style="font-size:0.88rem; color:var(--text-secondary); margin-top:0;">
+          Running with the <strong>Public Demo Virtual Handset</strong> (Authorized Demo PIN: <code>2580</code>).
+          {% if not current_user %}
+            <a href="{{ url_for('login') }}">Sign in</a> to test with your own registered device profiles.
+          {% endif %}
+        </p>
+      {% endif %}
+
+      <div style="font-size:0.86rem; color:var(--text-secondary); margin-bottom:1rem;">
+        <strong>Interactive Simulation Flow:</strong>
+        <ol style="padding-left:1.2rem; margin:0.4rem 0 0; line-height:1.55;">
+          <li><strong>Click &amp; Hold Power Button:</strong> Hold (or click) the glowing side <strong>POWER</strong> button to open the Shutdown Confirmation screen.</li>
+          <li><strong>Confirm or Cancel:</strong> Choose <em>Shutdown Simulation (Verify Identity)</em> or click <em>Cancel</em> to abort and log the cancellation.</li>
+          <li><strong>Verify Identity (Success):</strong> Enter Demo PIN <code>{{ selected_device.demo_sim_pin if selected_device else '2580' }}</code> or click <em>Demo Biometric (Pass)</em> to watch the shutdown animation and reach the <strong>“Device Powered Off (Simulation)”</strong> screen.</li>
+          <li><strong>Failed Verification (Blocked):</strong> Enter a wrong PIN (e.g. <code>0000</code>) or click <em>Demo Biometric (Fail)</em> to prevent shutdown, display an anti-theft error alert, and click <em>Retry Verification</em>.</li>
+          <li><strong>Restart Virtual Phone:</strong> From the powered-off screen, click <em>Restart Virtual Phone &amp; Try Again</em> to boot back to the lock screen.</li>
+        </ol>
+      </div>
+
+      <!-- One-Click Quick Scenario Buttons for Live Demo -->
+      <div style="display:flex; gap:0.5rem; flex-wrap:wrap; padding-top:0.75rem; border-top:1px solid var(--border-subtle);">
+        <button type="button" id="sim-quick-open-power" class="btn btn-sm btn-secondary">
+          1. Open Power Menu
+        </button>
+        <button type="button" id="sim-quick-test-fail" class="btn btn-sm btn-danger">
+          2. Simulate Failed Auth (Block)
+        </button>
+        <button type="button" id="sim-quick-test-pass" class="btn btn-sm btn-success">
+          3. Simulate Verified Shutdown
+        </button>
+        <button type="button" id="sim-quick-restart" class="btn btn-sm btn-secondary">
+          4. Restart Virtual Phone
+        </button>
+      </div>
+    </div>
+
+    <!-- Security Event Log Card -->
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h2 class="card-title">Security Event Log (Shutdown Protection)</h2>
+          <p style="margin:0.15rem 0 0; font-size:0.8rem; color:var(--text-secondary);">
+            Tracks every simulated power-button trigger, verification attempt, success, failure, and cancellation.
+          </p>
+        </div>
+        <button type="button" id="sim-clear-log-btn" class="btn btn-sm btn-secondary">Clear View</button>
+      </div>
+
+      <!-- Live Event Summary Counters -->
+      <div class="sim-counter-grid">
+        <div class="sim-counter-pill">
+          <span id="sim-count-total" class="count" style="color:var(--accent-highlight);">0</span>
+          <span class="label">Total Events</span>
+        </div>
+        <div class="sim-counter-pill">
+          <span id="sim-count-success" class="count" style="color:var(--status-success);">0</span>
+          <span class="label">Verified (Success)</span>
+        </div>
+        <div class="sim-counter-pill">
+          <span id="sim-count-failed" class="count" style="color:var(--status-danger);">0</span>
+          <span class="label">Blocked (Failed)</span>
+        </div>
+        <div class="sim-counter-pill">
+          <span id="sim-count-cancelled" class="count" style="color:var(--status-warning);">0</span>
+          <span class="label">Cancelled</span>
+        </div>
+      </div>
+
+      <div class="table-responsive">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Timestamp (Local Time)</th>
+              <th>Method / Action</th>
+              <th>Status</th>
+              <th>Security Event Details</th>
+            </tr>
+          </thead>
+          <tbody id="sim-event-log-body">
+            {% if recent_sim_logs %}
+              {% for row in recent_sim_logs %}
+                {% set is_ok = 'Outcome=SUCCESS' in row.details or 'Outcome=ALLOW' in row.details %}
+                {% set is_cancel = 'Outcome=CANCELLED' in row.details %}
+                {% set is_restart = 'Outcome=RESTARTED' in row.details %}
+                <tr data-persisted="true"
+                    data-outcome="{% if is_ok %}SUCCESS{% elif is_cancel %}CANCELLED{% elif is_restart %}RESTARTED{% else %}FAILED{% endif %}">
+                  <td><code>{{ row.created_at | local_time }}</code></td>
+                  <td><span class="badge badge-info">AUDIT LOG</span></td>
+                  <td>
+                    {% if is_ok %}
+                      <span class="badge badge-protected">SUCCESS</span>
+                    {% elif is_cancel %}
+                      <span class="badge badge-warning">CANCELLED</span>
+                    {% elif is_restart %}
+                      <span class="badge badge-info">RESTARTED</span>
+                    {% else %}
+                      <span class="badge badge-lost">FAILED / BLOCKED</span>
+                    {% endif %}
+                  </td>
+                  <td>{{ row.details }}</td>
+                </tr>
+              {% endfor %}
+            {% else %}
+              <tr class="empty-log-row">
+                <td colspan="4" style="text-align:center; color:var(--text-muted);">
+                  Click and hold the virtual <strong>POWER</strong> button on the left to record security verification events.
+                </td>
+              </tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endset %}
+
+{% block workspace_content %}{{ sim_content }}{% endblock %}
+{% block public_content %}{{ sim_content }}{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/simulator.js') }}"></script>
+{% endblock %}
